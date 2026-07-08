@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -80,7 +81,7 @@ import androidx.compose.ui.unit.dp
 fun AppTopBar(
     title: String,
     onBackClick: (() -> Unit)? = null,
-    actions: @Composable () -> Unit = {}
+    actions: @Composable RowScope.() -> Unit = {}
 ) {
     TopAppBar(
         title = {
