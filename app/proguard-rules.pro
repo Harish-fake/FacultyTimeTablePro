@@ -1,0 +1,6 @@
+-keepattributes *Annotation*
+-keep class com.facultytimetable.pro.data.local.db.entity.** { *; }
+-keep class com.facultytimetable.pro.data.model.** { *; }
+-keep class com.facultytimetable.pro.domain.model.** { *; }
+-keep class * extends androidx.room.RoomDatabase
+-keep @dagger.hilt.android.HiltAndroidApp class * { *; }
