@@ -8,7 +8,6 @@ import com.facultytimetable.pro.data.local.db.dao.SectionDao
 import com.facultytimetable.pro.data.local.db.dao.SemesterDao
 import com.facultytimetable.pro.data.local.db.dao.SubjectDao
 import com.facultytimetable.pro.data.local.db.dao.TimeSlotDao
-import com.facultytimetable.pro.data.local.db.dao.TimetableEntryDao
 import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
 import com.facultytimetable.pro.data.local.db.entity.DepartmentEntity
 import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
@@ -20,10 +19,7 @@ import com.facultytimetable.pro.data.local.db.entity.SlotType
 import com.facultytimetable.pro.data.local.db.entity.SubjectEntity
 import com.facultytimetable.pro.data.local.db.entity.SubjectType
 import com.facultytimetable.pro.data.local.db.entity.TimeSlotEntity
-import com.facultytimetable.pro.data.local.db.entity.TimetableEntryEntity
-import com.facultytimetable.pro.data.local.db.entity.WeekType
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import javax.inject.Inject
@@ -38,8 +34,7 @@ class DatabaseSeeder @Inject constructor(
     private val roomDao: RoomDao,
     private val semesterDao: SemesterDao,
     private val sectionDao: SectionDao,
-    private val timeSlotDao: TimeSlotDao,
-    private val timetableEntryDao: TimetableEntryDao
+    private val timeSlotDao: TimeSlotDao
 ) {
     suspend fun seed() = withContext(Dispatchers.IO) {
         if (departmentDao.getCount() > 0) return@withContext
@@ -54,9 +49,6 @@ class DatabaseSeeder @Inject constructor(
         val sectionIds = insertSections(semIds)
 
         insertTimeSlots()
-        val allSlots = timeSlotDao.getAllTimeSlots().first()
-
-        insertTimetableEntries(sectionIds, subjectIds, facultyIds, roomIds, allSlots)
     }
 
     private suspend fun insertDepartments(): Map<String, Long> {
@@ -171,97 +163,5 @@ class DatabaseSeeder @Inject constructor(
             }
         }
         timeSlotDao.insertAll(timeSlots)
-    }
-
-    private suspend fun insertTimetableEntries(
-        sectionIds: Map<String, Long>,
-        subjectIds: Map<String, Long>,
-        facultyIds: Map<String, Long>,
-        roomIds: Map<String, Long>,
-        allSlots: List<TimeSlotEntity>
-    ) {
-        val regularSlots = allSlots.filter { it.type == SlotType.REGULAR }
-
-        val entries = mutableListOf<TimetableEntryEntity>()
-
-        // CSE 3A timetable
-        val cseA = sectionIds["CSE 3A"]!!
-        entries.addAll(
-            mapOf(
-                1 to listOf("CS201" to "arun", "CS202" to "neha", "CS201" to "arun", "CS251" to "neha"),
-                2 to listOf("CS202" to "neha", "CS201" to "arun", "CS202" to "neha", "CS251" to "arun"),
-                3 to listOf("CS201" to "arun", "CS202" to "neha", "CS201" to "arun", "CS290" to "arun"),
-                4 to listOf("CS202" to "neha", "CS201" to "arun", "CS202" to "neha", "CS290" to "neha"),
-                5 to listOf("CS251" to "arun", "CS251" to "neha", "CS201" to "arun", "CS202" to "neha")
-            ).flatMap { (day, subjects) ->
-                val daySlots = regularSlots.filter { it.dayOfWeek == day }.sortedBy { it.periodNumber }
-                subjects.mapIndexedNotNull { idx, (subjKey, facKey) ->
-                    val slot = daySlots.getOrNull(idx) ?: return@mapIndexedNotNull null
-                    TimetableEntryEntity(
-                        subjectId = subjectIds[subjKey]!!,
-                        facultyId = facultyIds[facKey]!!,
-                        roomId = if (subjKey == "CS251") roomIds["CS Lab-1"]!! else roomIds["CSE-101"]!!,
-                        timeSlotId = slot.id,
-                        dayOfWeek = day,
-                        sectionId = cseA,
-                        weekType = WeekType.ALL
-                    )
-                }
-            }
-        )
-
-        // CSE 3B timetable
-        val cseB = sectionIds["CSE 3B"]!!
-        entries.addAll(
-            mapOf(
-                1 to listOf("CS202" to "neha", "CS201" to "arun", "CS202" to "neha", "CS251" to "arun"),
-                2 to listOf("CS201" to "arun", "CS202" to "neha", "CS201" to "arun", "CS290" to "neha"),
-                3 to listOf("CS202" to "neha", "CS251" to "arun", "CS201" to "arun", "CS202" to "neha"),
-                4 to listOf("CS201" to "arun", "CS290" to "arun", "CS202" to "neha", "CS201" to "arun"),
-                5 to listOf("CS251" to "neha", "CS201" to "arun", "CS202" to "neha", "CS251" to "arun")
-            ).flatMap { (day, subjects) ->
-                val daySlots = regularSlots.filter { it.dayOfWeek == day }.sortedBy { it.periodNumber }
-                subjects.mapIndexedNotNull { idx, (subjKey, facKey) ->
-                    val slot = daySlots.getOrNull(idx) ?: return@mapIndexedNotNull null
-                    TimetableEntryEntity(
-                        subjectId = subjectIds[subjKey]!!,
-                        facultyId = facultyIds[facKey]!!,
-                        roomId = if (subjKey == "CS251") roomIds["CS Lab-1"]!! else roomIds["CSE-101"]!!,
-                        timeSlotId = slot.id,
-                        dayOfWeek = day,
-                        sectionId = cseB,
-                        weekType = WeekType.ALL
-                    )
-                }
-            }
-        )
-
-        // ECE 3A timetable
-        val eceA = sectionIds["ECE 3A"]!!
-        entries.addAll(
-            mapOf(
-                1 to listOf("EC201" to "amit", "EC202" to "sunita", "EC201" to "amit", "EC251" to "sunita"),
-                2 to listOf("EC202" to "sunita", "EC201" to "amit", "EC202" to "sunita", "EC251" to "amit"),
-                3 to listOf("EC201" to "amit", "EC202" to "sunita", "EC201" to "amit", "EC202" to "sunita"),
-                4 to listOf("EC202" to "sunita", "EC201" to "amit", "EC251" to "amit", "EC202" to "sunita"),
-                5 to listOf("EC251" to "amit", "EC202" to "sunita", "EC201" to "amit", "EC251" to "sunita")
-            ).flatMap { (day, subjects) ->
-                val daySlots = regularSlots.filter { it.dayOfWeek == day }.sortedBy { it.periodNumber }
-                subjects.mapIndexedNotNull { idx, (subjKey, facKey) ->
-                    val slot = daySlots.getOrNull(idx) ?: return@mapIndexedNotNull null
-                    TimetableEntryEntity(
-                        subjectId = subjectIds[subjKey]!!,
-                        facultyId = facultyIds[facKey]!!,
-                        roomId = if (subjKey == "EC251") roomIds["Analog Lab"]!! else roomIds["ECE-102"]!!,
-                        timeSlotId = slot.id,
-                        dayOfWeek = day,
-                        sectionId = eceA,
-                        weekType = WeekType.ALL
-                    )
-                }
-            }
-        )
-
-        timetableEntryDao.insertAll(entries)
     }
 }
