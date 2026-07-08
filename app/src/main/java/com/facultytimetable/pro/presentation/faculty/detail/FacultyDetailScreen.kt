@@ -129,7 +129,6 @@ fun FacultyDetailScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         com.facultytimetable.pro.presentation.common.components.ActionChip(
-                        com.facultytimetable.pro.presentation.common.components.ActionChip(
                             text = "View Timetable",
                             onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.timetableFaculty(facultyId)) },
                             modifier = Modifier.weight(1f)
