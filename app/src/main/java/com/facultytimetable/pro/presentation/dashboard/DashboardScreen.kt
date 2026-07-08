@@ -93,25 +93,30 @@ fun DashboardScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatsCard("Departments", state.departmentCount.toString(),
                         icon = { Icon(Icons.Default.School, null, tint = MaterialTheme.colorScheme.primary) },
-                        color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                        color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f),
+                        onClick = { navController.navigate(Routes.DEPARTMENT_LIST) })
                     StatsCard("Faculty", state.facultyCount.toString(),
                         icon = { Icon(Icons.Default.People, null, tint = MaterialTheme.colorScheme.secondary) },
-                        color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
+                        color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f),
+                        onClick = { navController.navigate(Routes.FACULTY_LIST) })
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatsCard("Subjects", state.subjectCount.toString(),
                         icon = { Icon(Icons.Default.Book, null, tint = MaterialTheme.colorScheme.tertiary) },
-                        color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f))
+                        color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f),
+                        onClick = { navController.navigate(Routes.SUBJECT_LIST) })
                     StatsCard("Rooms", state.roomCount.toString(),
                         icon = { Icon(Icons.Default.MeetingRoom, null, tint = MaterialTheme.colorScheme.primary) },
-                        color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                        color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f),
+                        onClick = { navController.navigate(Routes.ROOM_LIST) })
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatsCard("Timetable", state.timetableCount.toString(),
                         icon = { Icon(Icons.Default.CalendarMonth, null, tint = MaterialTheme.colorScheme.error) },
-                        color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                        color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f),
+                        onClick = { navController.navigate(Routes.TIMETABLE_GRID) })
                     Card(
                         onClick = { navController.navigate(Routes.TIMETABLE_GENERATOR) },
                         modifier = Modifier.weight(1f),

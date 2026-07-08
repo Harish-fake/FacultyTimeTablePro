@@ -36,6 +36,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.IconButton
 import com.facultytimetable.pro.presentation.common.components.InfoRow
 import com.facultytimetable.pro.presentation.common.components.LoadingState
 import com.facultytimetable.pro.presentation.common.components.SectionHeader
@@ -120,6 +122,13 @@ fun FacultyDetailScreen(
 
                     SectionHeader("Actions")
                     Row(modifier = Modifier.fillMaxWidth()) {
+                        com.facultytimetable.pro.presentation.common.components.ActionChip(
+                            text = "Edit",
+                            onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.facultyForm(facultyId)) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        com.facultytimetable.pro.presentation.common.components.ActionChip(
                         com.facultytimetable.pro.presentation.common.components.ActionChip(
                             text = "View Timetable",
                             onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.timetableFaculty(facultyId)) },

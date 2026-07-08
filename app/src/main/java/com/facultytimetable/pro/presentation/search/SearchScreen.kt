@@ -36,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.SearchBar
+import com.facultytimetable.pro.presentation.navigation.Routes
 
 data class SearchSuggestion(
     val type: String,
@@ -76,7 +77,14 @@ fun SearchScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { /* navigate to detail */ }
+                        .clickable {
+                            when (suggestion.type) {
+                                "Faculty" -> navController.navigate(Routes.facultyDetail(suggestion.id))
+                                "Subject" -> {}
+                                "Room" -> {}
+                                "Department" -> navController.navigate(Routes.departmentForm(suggestion.id))
+                            }
+                        }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
