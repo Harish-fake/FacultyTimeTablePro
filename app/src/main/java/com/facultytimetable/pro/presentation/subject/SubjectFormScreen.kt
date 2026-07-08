@@ -22,7 +22,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -34,7 +33,6 @@ import androidx.navigation.NavController
 import com.facultytimetable.pro.data.local.db.entity.SubjectType
 import com.facultytimetable.pro.presentation.common.components.ActionButton
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
-import com.facultytimetable.pro.presentation.department.DepartmentFormViewModel
 import com.facultytimetable.pro.presentation.common.components.LoadingState
 import com.facultytimetable.pro.presentation.common.components.DropdownSelector
 

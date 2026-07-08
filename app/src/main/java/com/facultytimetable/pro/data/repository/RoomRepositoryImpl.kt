@@ -25,6 +25,8 @@ class RoomRepositoryImpl @Inject constructor(
 
     override suspend fun getRoomByName(name: String): RoomEntity? = roomDao.getRoomByName(name)
 
+    override fun getCountFlow(): Flow<Int> = roomDao.getCountFlow()
+
     override suspend fun insert(room: RoomEntity): Long = roomDao.insert(room)
 
     override suspend fun update(room: RoomEntity) = roomDao.update(room)

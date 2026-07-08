@@ -15,6 +15,7 @@ interface RoomRepository {
     suspend fun update(room: RoomEntity)
     suspend fun delete(room: RoomEntity)
     suspend fun deleteById(id: Long)
+    fun getCountFlow(): Flow<Int>
     suspend fun getCount(): Int
     fun getRoomCountByType(type: RoomType): Flow<Int>
     fun searchRooms(query: String): Flow<List<RoomEntity>>

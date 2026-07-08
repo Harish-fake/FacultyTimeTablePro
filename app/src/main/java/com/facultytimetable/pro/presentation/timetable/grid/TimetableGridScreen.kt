@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,8 +48,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.facultytimetable.pro.data.local.db.entity.SectionEntity
+import com.facultytimetable.pro.data.local.db.entity.SlotType
+import com.facultytimetable.pro.data.local.db.entity.SubjectType
 import com.facultytimetable.pro.data.local.db.entity.TimetableEntryEntity
-import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.EmptyState
 import com.facultytimetable.pro.presentation.common.components.LoadingState
@@ -61,9 +62,10 @@ import com.facultytimetable.pro.presentation.theme.SubjectLunch
 import com.facultytimetable.pro.presentation.theme.SubjectProject
 import com.facultytimetable.pro.presentation.theme.SubjectSeminar
 import com.facultytimetable.pro.presentation.theme.SubjectSports
+import com.facultytimetable.pro.presentation.theme.SubjectLibrary
 import com.facultytimetable.pro.presentation.theme.SubjectTheory
 
-private val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+private val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,12 +89,8 @@ fun TimetableGridScreen(
                             showMenu = false
                             navController.navigate(Routes.TIMETABLE_GENERATOR)
                         }, leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) })
-                        DropdownMenuItem(text = { Text("Department View") }, onClick = {
-                            showMenu = false
-                        })
-                        DropdownMenuItem(text = { Text("Room View") }, onClick = {
-                            showMenu = false
-                        })
+                        DropdownMenuItem(text = { Text("Department View") }, onClick = { showMenu = false })
+                        DropdownMenuItem(text = { Text("Room View") }, onClick = { showMenu = false })
                     }
                 }
             }
@@ -101,7 +99,7 @@ fun TimetableGridScreen(
         if (state.isLoading) {
             LoadingState()
         } else if (state.sections.isEmpty()) {
-            EmptyState(title = "No Timetable", message = "Add sections and generate timetable")
+            EmptyState(title = "No Data", message = "Add sections, faculty, subjects, and rooms to create a timetable. Go to Settings or use the generator.")
         } else {
             SectionSelector(
                 sections = state.sections,
@@ -109,13 +107,16 @@ fun TimetableGridScreen(
                 onSectionSelected = viewModel::selectSection
             )
 
-            if (state.timeSlots.isEmpty()) {
-                EmptyState(title = "No Time Slots", message = "Configure working hours first")
+            if (state.entries.isEmpty()) {
+                EmptyState(
+                    title = "Empty Timetable",
+                    message = state.selectedSection?.let {
+                        "No entries for ${it.name}. Use Auto Generate to create one."
+                    } ?: "Select a section to view"
+                )
             } else {
                 WeeklyGrid(
-                    timeSlots = state.timeSlots,
-                    entries = state.entries,
-                    onDeleteEntry = viewModel::deleteEntry
+                    state = state
                 )
             }
         }
@@ -124,9 +125,9 @@ fun TimetableGridScreen(
 
 @Composable
 private fun SectionSelector(
-    sections: List<com.facultytimetable.pro.data.local.db.entity.SectionEntity>,
-    selectedSection: com.facultytimetable.pro.data.local.db.entity.SectionEntity?,
-    onSectionSelected: (com.facultytimetable.pro.data.local.db.entity.SectionEntity) -> Unit
+    sections: List<SectionEntity>,
+    selectedSection: SectionEntity?,
+    onSectionSelected: (SectionEntity) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -159,12 +160,11 @@ private fun SectionSelector(
 
 @Composable
 private fun WeeklyGrid(
-    timeSlots: List<com.facultytimetable.pro.data.local.db.entity.TimeSlotEntity>,
-    entries: List<TimetableEntryEntity>,
-    onDeleteEntry: (TimetableEntryEntity) -> Unit
+    state: TimetableGridState
 ) {
-    val groupedByDay = timeSlots.groupBy { it.dayOfWeek }
-    val days = groupedByDay.keys.sorted().take(5) // Mon-Fri
+    val groupedByDay = state.timeSlots.groupBy { it.dayOfWeek }
+    val days = groupedByDay.keys.sorted().take(5)
+    val maxPeriods = groupedByDay.values.maxOfOrNull { it.size } ?: 8
 
     LazyColumn(
         modifier = Modifier
@@ -186,7 +186,6 @@ private fun WeeklyGrid(
             }
         }
 
-        val maxPeriods = groupedByDay.values.maxOfOrNull { it.size } ?: 8
         items((1..maxPeriods).toList()) { period ->
             Row(
                 modifier = Modifier
@@ -204,27 +203,42 @@ private fun WeeklyGrid(
                 )
 
                 days.forEach { day ->
-                    val entry = entries.find { it.dayOfWeek == day && it.periodNumber() == period }
+                    val entry = state.entries.find {
+                        val daySlots = groupedByDay[day] ?: emptyList()
+                        val slot = daySlots.getOrNull(period - 1)
+                        it.dayOfWeek == day && slot != null && it.timeSlotId == slot.id
+                    }
                     val timeSlot = groupedByDay[day]?.getOrNull(period - 1)
 
-                    if (timeSlot?.type == com.facultytimetable.pro.data.local.db.entity.SlotType.LUNCH) {
+                    if (timeSlot?.type == SlotType.LUNCH) {
                         GridCell(
                             label = "Lunch",
                             color = SubjectLunch,
                             isSpecial = true
                         )
-                    } else if (timeSlot?.type == com.facultytimetable.pro.data.local.db.entity.SlotType.BREAK) {
+                    } else if (timeSlot?.type == SlotType.BREAK) {
                         GridCell(
                             label = "Break",
                             color = SubjectBreak,
                             isSpecial = true
                         )
                     } else if (entry != null) {
+                        val resolved = state.subjects[entry.subjectId]
+                        val faculty = state.facultyMap[entry.facultyId]
+                        val subjType = resolved?.type ?: SubjectType.THEORY
+                        val color = when (subjType) {
+                            SubjectType.LAB -> SubjectLab
+                            SubjectType.PROJECT -> SubjectProject
+                            SubjectType.SEMINAR -> SubjectSeminar
+                            SubjectType.LIBRARY -> SubjectLibrary
+                            SubjectType.SPORTS -> SubjectSports
+                            else -> SubjectTheory
+                        }
                         GridCell(
-                            label = "${entry.subjectName()}",
-                            subtitle = "${entry.facultyName()}",
-                            color = entry.entryColor(),
-                            onClick = { /* show detail bottom sheet */ }
+                            label = resolved?.name ?: "Subject",
+                            subtitle = faculty?.name ?: "",
+                            color = color,
+                            onClick = { }
                         )
                     } else {
                         GridCell(
@@ -291,9 +305,3 @@ private fun RowScope.GridCell(
         }
     }
 }
-
-// Extension function to get period number from entry (approximate from timeSlotId)
-private fun TimetableEntryEntity.periodNumber(): Int = (timeSlotId % 100).toInt()
-private fun TimetableEntryEntity.subjectName(): String = "Subject"
-private fun TimetableEntryEntity.facultyName(): String = "Faculty"
-private fun TimetableEntryEntity.entryColor(): Color = SubjectTheory

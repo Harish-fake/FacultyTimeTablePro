@@ -49,6 +49,9 @@ interface RoomDao {
     @Query("SELECT COUNT(*) FROM rooms WHERE type = :type")
     fun getRoomCountByType(type: RoomType): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM rooms")
+    fun getCountFlow(): Flow<Int>
+
     @Query("SELECT * FROM rooms WHERE name LIKE '%' || :query || '%' OR building LIKE '%' || :query || '%'")
     fun searchRooms(query: String): Flow<List<RoomEntity>>
 }
