@@ -2,8 +2,6 @@ package com.facultytimetable.pro.presentation.section
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.facultytimetable.pro.data.local.db.dao.SectionDao
 import com.facultytimetable.pro.data.local.db.dao.SemesterDao
 import com.facultytimetable.pro.data.local.db.entity.SectionEntity
