@@ -15,12 +15,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.RestorePage
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -123,6 +128,50 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setBiometricEnabled
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                "Data Management",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SettingsCard(
+                icon = Icons.Default.School,
+                title = "Departments",
+                subtitle = "Manage departments & HODs",
+                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.DEPARTMENT_LIST) }
+            )
+
+            SettingsCard(
+                icon = Icons.Default.People,
+                title = "Faculty",
+                subtitle = "Manage faculty & designations",
+                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.FACULTY_LIST) }
+            )
+
+            SettingsCard(
+                icon = Icons.Default.Book,
+                title = "Subjects",
+                subtitle = "Manage subjects & codes",
+                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.SUBJECT_LIST) }
+            )
+
+            SettingsCard(
+                icon = Icons.Default.MeetingRoom,
+                title = "Rooms & Labs",
+                subtitle = "Manage rooms & facilities",
+                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.ROOM_LIST) }
+            )
+
+            SettingsCard(
+                icon = Icons.Default.Group,
+                title = "Sections",
+                subtitle = "Manage sections & strength",
+                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.SECTION_LIST) }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(

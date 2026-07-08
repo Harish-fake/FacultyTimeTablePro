@@ -203,6 +203,24 @@ fun NavGraph() {
                 com.facultytimetable.pro.presentation.reports.ReportsScreen(navController = navController)
             }
 
+            composable(Routes.SECTION_LIST) {
+                com.facultytimetable.pro.presentation.section.SectionListScreen(navController = navController)
+            }
+
+            composable(
+                route = Routes.SECTION_FORM,
+                arguments = listOf(navArgument("sectionId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                })
+            ) { backStackEntry ->
+                val sectionId = backStackEntry.arguments?.getLong("sectionId") ?: -1L
+                com.facultytimetable.pro.presentation.section.SectionFormScreen(
+                    sectionId = if (sectionId == -1L) null else sectionId,
+                    navController = navController
+                )
+            }
+
             composable(Routes.BACKUP) {
                 com.facultytimetable.pro.presentation.backup.BackupScreen(navController = navController)
             }
