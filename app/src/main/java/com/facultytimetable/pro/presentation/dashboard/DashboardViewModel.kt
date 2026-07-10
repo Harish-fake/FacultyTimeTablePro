@@ -43,14 +43,14 @@ class DashboardViewModel @Inject constructor(
 
     val state: StateFlow<DashboardState> = combine(
         deptCount, facCount, subjCount, roomCount, ttCount, appPreferences.isFirstLaunch
-    ) { dept, fac, subj, room, tt, firstLaunch ->
+    ) {
         DashboardState(
-            departmentCount = dept,
-            facultyCount = fac,
-            subjectCount = subj,
-            roomCount = room,
-            timetableCount = tt,
-            firstLaunch = firstLaunch,
+            departmentCount = it[0] as Int,
+            facultyCount = it[1] as Int,
+            subjectCount = it[2] as Int,
+            roomCount = it[3] as Int,
+            timetableCount = it[4] as Int,
+            firstLaunch = it[5] as Boolean,
             isLoading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardState())
