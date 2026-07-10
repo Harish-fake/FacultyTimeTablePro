@@ -124,7 +124,7 @@ class SearchViewModel @Inject constructor(
         }
 
         for (s in sections) {
-            if (s.name.contains(q, true) || s.code.contains(q, true)) {
+            if (s.name.contains(q, true)) {
                 val deptName = deptMap[s.departmentId]?.name ?: ""
                 results.add(SearchSuggestion("Section", s.id, s.name, deptName))
             }
