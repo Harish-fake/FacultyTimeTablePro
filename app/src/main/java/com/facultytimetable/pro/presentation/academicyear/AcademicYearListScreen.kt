@@ -36,8 +36,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
 import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
-import com.facultytimetable.pro.domain.repository.AcademicYearRepository
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppFAB
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
@@ -60,32 +60,32 @@ import java.util.Locale
 import javax.inject.Inject
 
 data class AcademicYearListState(
-    val academicYears: List<AcademicYearEntity> = emptyList(),
+    val years: List<AcademicYearEntity> = emptyList(),
     val searchQuery: String = "",
     val isLoading: Boolean = true
 )
 
 @HiltViewModel
 class AcademicYearListViewModel @Inject constructor(
-    private val academicYearRepository: AcademicYearRepository
+    private val academicYearDao: AcademicYearDao
 ) : ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
-    private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    private val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
 
     val state: StateFlow<AcademicYearListState> = combine(
-        academicYearRepository.getAllAcademicYears(),
+        academicYearDao.getAllAcademicYears(),
         searchQuery
     ) { years, query ->
         val filtered = if (query.isBlank()) years
         else years.filter { it.name.contains(query, ignoreCase = true) }
-        AcademicYearListState(academicYears = filtered, searchQuery = query, isLoading = false)
+        AcademicYearListState(years = filtered, searchQuery = query, isLoading = false)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AcademicYearListState())
 
     fun onSearchQueryChange(query: String) { searchQuery.value = query }
 
-    fun deleteAcademicYear(year: AcademicYearEntity) {
-        viewModelScope.launch { academicYearRepository.delete(year) }
+    fun deleteYear(year: AcademicYearEntity) {
+        viewModelScope.launch { academicYearDao.delete(year) }
     }
 
     fun formatDate(epoch: Long): String = dateFormat.format(Date(epoch))
@@ -103,7 +103,15 @@ fun AcademicYearListScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
             title = "Academic Years",
-            onBackClick = { navController.popBackStack() }
+            onBackClick = { navController.popBackStack() },
+            actions = {
+                Text(
+                    text = "${state.years.size}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+            }
         )
 
         SearchBar(
@@ -115,11 +123,11 @@ fun AcademicYearListScreen(
 
         if (state.isLoading) {
             LoadingState()
-        } else if (state.academicYears.isEmpty()) {
+        } else if (state.years.isEmpty()) {
             EmptyState(
                 title = "No Academic Years",
-                message = if (state.searchQuery.isNotBlank()) "No academic years matching your search"
-                else "Add an academic year to get started"
+                message = if (state.searchQuery.isNotBlank()) "No years matching your search"
+                else "Add academic years to get started"
             )
         } else {
             LazyColumn(
@@ -127,13 +135,34 @@ fun AcademicYearListScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(16.dp)
             ) {
-                items(state.academicYears, key = { it.id }) { year ->
-                    AcademicYearCard(
-                        year = year,
-                        dateFormatter = viewModel::formatDate,
-                        onEdit = { navController.navigate(Routes.academicYearForm(year.id)) },
-                        onDelete = { showDeleteDialog = year }
-                    )
+                items(state.years, key = { it.id }) { year ->
+                    AppCard(modifier = Modifier.animateContentSize()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null,
+                                modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(year.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                                Text(
+                                    text = "${viewModel.formatDate(year.startDate)} - ${viewModel.formatDate(year.endDate)}",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (year.isCurrent) {
+                                ColorChip(label = "Current", color = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            IconButton(onClick = { navController.navigate(Routes.academicYearForm(year.id)) }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                            }
+                            IconButton(onClick = { showDeleteDialog = year }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -144,63 +173,11 @@ fun AcademicYearListScreen(
     showDeleteDialog?.let { year ->
         ConfirmDialog(
             title = "Delete Academic Year",
-            message = "Delete ${year.name}? This will also delete all semesters in this year.",
+            message = "Delete ${year.name}? All semesters and sections in this year will also be deleted.",
             confirmText = "Delete",
-            onConfirm = {
-                viewModel.deleteAcademicYear(year)
-                showDeleteDialog = null
-            },
+            onConfirm = { viewModel.deleteYear(year); showDeleteDialog = null },
             onDismiss = { showDeleteDialog = null },
             isDestructive = true
         )
-    }
-}
-
-@Composable
-private fun AcademicYearCard(
-    year: AcademicYearEntity,
-    dateFormatter: (Long) -> String,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    AppCard(modifier = Modifier.animateContentSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.CalendarMonth,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = year.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (year.isCurrent) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        ColorChip(label = "Current", color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Text(
-                    text = "${dateFormatter(year.startDate)} - ${dateFormatter(year.endDate)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
-            }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-            }
-        }
     }
 }

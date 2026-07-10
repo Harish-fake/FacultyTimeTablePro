@@ -37,10 +37,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
+import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
+import com.facultytimetable.pro.data.local.db.dao.SemesterDao
 import com.facultytimetable.pro.data.local.db.entity.SemesterEntity
-import com.facultytimetable.pro.domain.repository.AcademicYearRepository
-import com.facultytimetable.pro.domain.repository.SemesterRepository
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppFAB
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
@@ -59,42 +58,37 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SemesterListState(
-    val semesters: List<SemesterEntity> = emptyList(),
-    val academicYear: AcademicYearEntity? = null,
+    val semesters: List<SemesterWithYear> = emptyList(),
     val isLoading: Boolean = true
+)
+
+data class SemesterWithYear(
+    val semester: SemesterEntity,
+    val yearName: String
 )
 
 @HiltViewModel
 class SemesterListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val semesterRepository: SemesterRepository,
-    private val academicYearRepository: AcademicYearRepository
+    private val semesterDao: SemesterDao,
+    private val academicYearDao: AcademicYearDao
 ) : ViewModel() {
 
-    private val academicYearId: Long = savedStateHandle.get<Long>("academicYearId") ?: 0L
+    private val _state = MutableStateFlow(SemesterListState())
 
     val state: StateFlow<SemesterListState> = combine(
-        semesterRepository.getByAcademicYear(academicYearId),
-        MutableStateFlow(Unit)
-    ) { semesters, _ ->
+        semesterDao.getAllSemesters(),
+        academicYearDao.getAllAcademicYears()
+    ) { semesters, years ->
+        val yearMap = years.associateBy { it.id }
         SemesterListState(
-            semesters = semesters,
+            semesters = semesters.map { SemesterWithYear(it, yearMap[it.academicYearId]?.name ?: "Unknown") },
             isLoading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SemesterListState())
 
-    init {
-        viewModelScope.launch {
-            val year = academicYearRepository.getById(academicYearId)
-            _academicYear.value = year
-        }
-    }
-
-    private val _academicYear = MutableStateFlow<AcademicYearEntity?>(null)
-    val academicYear: StateFlow<AcademicYearEntity?> = _academicYear
-
     fun deleteSemester(semester: SemesterEntity) {
-        viewModelScope.launch { semesterRepository.delete(semester) }
+        viewModelScope.launch { semesterDao.delete(semester) }
     }
 }
 
@@ -105,103 +99,58 @@ fun SemesterListScreen(
     viewModel: SemesterListViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val academicYear by viewModel.academicYear.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<SemesterEntity?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(
-            title = academicYear?.name ?: "Semesters",
-            onBackClick = { navController.popBackStack() }
-        )
+        AppTopBar(title = "Semesters", onBackClick = { navController.popBackStack() })
 
-        if (state.isLoading) {
-            LoadingState()
-        } else if (state.semesters.isEmpty()) {
-            EmptyState(
-                title = "No Semesters",
-                message = "Add semesters to this academic year to get started"
-            )
-        } else {
+        if (state.isLoading) LoadingState()
+        else if (state.semesters.isEmpty()) EmptyState(title = "No Semesters", message = "Add semesters for your academic years")
+        else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(16.dp)
             ) {
-                items(state.semesters, key = { it.id }) { semester ->
-                    SemesterCard(
-                        semester = semester,
-                        onEdit = { navController.navigate(Routes.semesterForm(semester.id)) },
-                        onDelete = { showDeleteDialog = semester }
-                    )
+                items(state.semesters, key = { it.semester.id }) { item ->
+                    AppCard(modifier = Modifier.animateContentSize()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Book, contentDescription = null,
+                                modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(item.semester.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                                Text(item.yearName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            if (item.semester.isActive) {
+                                ColorChip(label = "Active", color = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            IconButton(onClick = { navController.navigate(Routes.semesterForm(item.semester.id)) }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                            }
+                            IconButton(onClick = { showDeleteDialog = item.semester }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
                 }
             }
         }
-
         AppFAB(onClick = { navController.navigate(Routes.semesterForm()) })
     }
 
     showDeleteDialog?.let { semester ->
         ConfirmDialog(
             title = "Delete Semester",
-            message = "Delete ${semester.name}? This action cannot be undone.",
+            message = "Delete ${semester.name}? All sections in this semester will also be deleted.",
             confirmText = "Delete",
-            onConfirm = {
-                viewModel.deleteSemester(semester)
-                showDeleteDialog = null
-            },
+            onConfirm = { viewModel.deleteSemester(semester); showDeleteDialog = null },
             onDismiss = { showDeleteDialog = null },
             isDestructive = true
         )
-    }
-}
-
-@Composable
-private fun SemesterCard(
-    semester: SemesterEntity,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    AppCard(modifier = Modifier.animateContentSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Book,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Semester ${semester.semesterNumber}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (semester.isActive) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        ColorChip(label = "Active", color = MaterialTheme.colorScheme.primary)
-                    } else {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        ColorChip(label = "Inactive", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-                Text(
-                    text = semester.name,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
-            }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-            }
-        }
     }
 }

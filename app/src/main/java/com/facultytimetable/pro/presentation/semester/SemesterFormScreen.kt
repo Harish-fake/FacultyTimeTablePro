@@ -29,10 +29,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
+import com.facultytimetable.pro.data.local.db.dao.SemesterDao
 import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
 import com.facultytimetable.pro.data.local.db.entity.SemesterEntity
-import com.facultytimetable.pro.domain.repository.AcademicYearRepository
-import com.facultytimetable.pro.domain.repository.SemesterRepository
 import com.facultytimetable.pro.presentation.common.components.ActionButton
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.DropdownSelector
@@ -59,76 +59,56 @@ data class SemesterFormState(
 @HiltViewModel
 class SemesterFormViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val semesterRepository: SemesterRepository,
-    private val academicYearRepository: AcademicYearRepository
+    private val semesterDao: SemesterDao,
+    private val academicYearDao: AcademicYearDao
 ) : ViewModel() {
 
     private val semesterId: Long? = savedStateHandle.get<Long>("semesterId")?.takeIf { it > 0 }
     private val _state = MutableStateFlow(SemesterFormState())
     val state: StateFlow<SemesterFormState> = _state
 
-    init {
-        loadData()
-    }
+    init { loadData() }
 
     private fun loadData() {
         viewModelScope.launch {
-            val years = academicYearRepository.getAllAcademicYears().first()
-
+            val years = academicYearDao.getAllAcademicYears().first()
             if (semesterId != null) {
-                val semester = semesterRepository.getById(semesterId)
-                if (semester != null) {
-                    val year = years.find { it.id == semester.academicYearId }
+                val sem = semesterDao.getSemesterById(semesterId)
+                if (sem != null) {
                     _state.value = _state.value.copy(
-                        name = semester.name,
-                        semesterNumber = semester.semesterNumber.toString(),
-                        selectedAcademicYear = year,
-                        isActive = semester.isActive,
-                        academicYears = years,
-                        isEditing = true,
-                        isLoading = false
+                        name = sem.name, semesterNumber = sem.semesterNumber.toString(),
+                        selectedAcademicYear = years.find { it.id == sem.academicYearId },
+                        isActive = sem.isActive, academicYears = years,
+                        isEditing = true, isLoading = false
                     )
                     return@launch
                 }
             }
-            _state.value = _state.value.copy(
-                academicYears = years,
-                isLoading = false
-            )
+            _state.value = _state.value.copy(academicYears = years, isLoading = false)
         }
     }
 
-    fun onNameChange(value: String) { _state.value = _state.value.copy(name = value, error = null) }
-    fun onSemesterNumberChange(value: String) {
-        if (value.all { it.isDigit() } && value.length <= 2) {
-            _state.value = _state.value.copy(semesterNumber = value, error = null)
-        }
-    }
-    fun onAcademicYearChange(year: AcademicYearEntity) { _state.value = _state.value.copy(selectedAcademicYear = year) }
-    fun onIsActiveChange(value: Boolean) { _state.value = _state.value.copy(isActive = value) }
+    fun onNameChange(v: String) { _state.value = _state.value.copy(name = v, error = null) }
+    fun onSemesterNumberChange(v: String) { _state.value = _state.value.copy(semesterNumber = v.filter { it.isDigit() }) }
+    fun onAcademicYearSelected(year: AcademicYearEntity) { _state.value = _state.value.copy(selectedAcademicYear = year) }
+    fun onActiveChange(v: Boolean) { _state.value = _state.value.copy(isActive = v) }
 
     fun save() {
         val s = _state.value
         if (s.name.isBlank()) { _state.value = s.copy(error = "Name is required"); return }
         if (s.semesterNumber.isBlank()) { _state.value = s.copy(error = "Semester number is required"); return }
-        if (s.selectedAcademicYear == null) { _state.value = s.copy(error = "Academic year is required"); return }
-
+        if (s.selectedAcademicYear == null) { _state.value = s.copy(error = "Select an academic year"); return }
         viewModelScope.launch {
             _state.value = _state.value.copy(isSaving = true)
             try {
                 val entity = SemesterEntity(
-                    id = semesterId ?: 0,
-                    name = s.name,
+                    id = semesterId ?: 0, name = s.name,
+                    semesterNumber = s.semesterNumber.toIntOrNull() ?: 1,
                     academicYearId = s.selectedAcademicYear.id,
-                    semesterNumber = s.semesterNumber.toInt(),
-                    isActive = s.isActive,
-                    createdAt = if (semesterId != null) {
-                        semesterRepository.getById(semesterId)?.createdAt ?: System.currentTimeMillis()
-                    } else System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis()
+                    isActive = s.isActive
                 )
-                if (semesterId != null) semesterRepository.update(entity)
-                else semesterRepository.insert(entity)
+                if (semesterId != null) semesterDao.update(entity)
+                else semesterDao.insert(entity)
                 _state.value = _state.value.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isSaving = false, error = e.message ?: "Save failed")
@@ -140,6 +120,7 @@ class SemesterFormViewModel @Inject constructor(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SemesterFormScreen(
+    semesterId: Long?,
     navController: NavController,
     viewModel: SemesterFormViewModel = hiltViewModel()
 ) {
@@ -149,75 +130,48 @@ fun SemesterFormScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
-            title = if (state.isEditing) "Edit Semester" else "Add Semester",
+            title = if (semesterId != null) "Edit Semester" else "Add Semester",
             onBackClick = { navController.popBackStack() }
         )
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
         ) {
             OutlinedTextField(
-                value = state.name,
-                onValueChange = viewModel::onNameChange,
-                label = { Text("Semester Name *") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                value = state.name, onValueChange = viewModel::onNameChange,
+                label = { Text("Semester Name *") }, placeholder = { Text("e.g. Odd Semester") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                shape = MaterialTheme.shapes.medium, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
             )
             Spacer(modifier = Modifier.height(12.dp))
-
             OutlinedTextField(
-                value = state.semesterNumber,
-                onValueChange = viewModel::onSemesterNumberChange,
-                label = { Text("Semester Number *") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+                value = state.semesterNumber, onValueChange = viewModel::onSemesterNumberChange,
+                label = { Text("Semester Number *") }, placeholder = { Text("e.g. 1") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
                 shape = MaterialTheme.shapes.medium,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Next
-                )
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next, keyboardType = KeyboardType.Number)
             )
             Spacer(modifier = Modifier.height(12.dp))
-
             DropdownSelector(
                 label = "Academic Year *",
-                selectedItem = state.selectedAcademicYear,
                 items = state.academicYears,
+                selectedItem = state.selectedAcademicYear,
                 itemLabel = { it.name },
-                onItemSelected = viewModel::onAcademicYearChange,
+                onItemSelected = viewModel::onAcademicYearSelected,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Active Semester",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f)
-                )
-                Switch(checked = state.isActive, onCheckedChange = viewModel::onIsActiveChange)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Active", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                Switch(checked = state.isActive, onCheckedChange = viewModel::onActiveChange)
             }
-
             if (state.error != null) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    state.error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Text(state.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             Spacer(modifier = Modifier.height(24.dp))
             ActionButton(
-                text = if (state.isEditing) "Update Semester" else "Add Semester",
-                onClick = viewModel::save,
-                enabled = !state.isSaving
+                text = if (semesterId != null) "Update Semester" else "Add Semester",
+                onClick = viewModel::save, enabled = !state.isSaving
             )
         }
     }
