@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.IconButton
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -183,7 +183,18 @@ private fun ReportsContent(
             }
 
             item {
-                ExportActions(selected, snackbarHostState)
+                ExportActions(
+                    reportType = selected,
+                    snackbarHostState = snackbarHostState,
+                    facultyWorkload = state.facultyWorkload,
+                    departmentSummaries = state.departmentSummaries,
+                    subjectAllocations = state.subjectAllocations,
+                    roomUtilizations = state.roomUtilizations,
+                    labUtilizations = state.labUtilizations,
+                    freePeriods = state.freePeriods,
+                    missingHours = state.missingHours,
+                    conflicts = state.conflicts
+                )
             }
 
             item {
@@ -260,7 +271,15 @@ private fun ReportTypeCard(
 @Composable
 private fun ExportActions(
     reportType: ReportType,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    facultyWorkload: List<FacultyWorkload> = emptyList(),
+    departmentSummaries: List<DepartmentSummary> = emptyList(),
+    subjectAllocations: List<SubjectAllocation> = emptyList(),
+    roomUtilizations: List<RoomUtilization> = emptyList(),
+    labUtilizations: List<RoomUtilization> = emptyList(),
+    freePeriods: List<FreePeriod> = emptyList(),
+    missingHours: List<MissingHour> = emptyList(),
+    conflicts: List<ConflictReport> = emptyList()
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -272,7 +291,11 @@ private fun ExportActions(
             onClick = {
                 scope.launch {
                     try {
-                        val file = exportReportAsCsv(context, reportType)
+                        val file = exportReportAsCsv(
+                            context, reportType,
+                            facultyWorkload, departmentSummaries, subjectAllocations,
+                            roomUtilizations, freePeriods, missingHours, conflicts
+                        )
                         val uri = FileProvider.getUriForFile(
                             context,
                             "${context.packageName}.fileprovider",
@@ -299,7 +322,11 @@ private fun ExportActions(
             onClick = {
                 scope.launch {
                     try {
-                        val file = exportReportAsCsv(context, reportType)
+                        val file = exportReportAsCsv(
+                            context, reportType,
+                            facultyWorkload, departmentSummaries, subjectAllocations,
+                            roomUtilizations, freePeriods, missingHours, conflicts
+                        )
                         val uri = FileProvider.getUriForFile(
                             context,
                             "${context.packageName}.fileprovider",
@@ -325,7 +352,19 @@ private fun ExportActions(
     }
 }
 
-private fun exportReportAsCsv(context: Context, reportType: ReportType): java.io.File {
+private fun String.csv(): String = "\"${this.replace("\"", "\"\"")}\""
+
+private fun exportReportAsCsv(
+    context: Context,
+    reportType: ReportType,
+    facultyWorkload: List<FacultyWorkload> = emptyList(),
+    departmentSummaries: List<DepartmentSummary> = emptyList(),
+    subjectAllocations: List<SubjectAllocation> = emptyList(),
+    roomUtilizations: List<RoomUtilization> = emptyList(),
+    freePeriods: List<FreePeriod> = emptyList(),
+    missingHours: List<MissingHour> = emptyList(),
+    conflicts: List<ConflictReport> = emptyList()
+): java.io.File {
     val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         ?: context.filesDir
     if (!downloadsDir.exists()) downloadsDir.mkdirs()
@@ -334,13 +373,49 @@ private fun exportReportAsCsv(context: Context, reportType: ReportType): java.io
         out.write("${reportType.title} Report\n")
         out.write("Generated: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}\n\n")
         when (reportType) {
-            ReportType.FACULTY_WORKLOAD -> out.write("Faculty,Department,Max Hours,Assigned Hours,Utilization %\n")
-            ReportType.DEPARTMENT_SUMMARY -> out.write("Department,Code,Head,Faculty Count,Subject Count\n")
-            ReportType.SUBJECT_ALLOCATION -> out.write("Department,Total Subjects,Theory,Lab,Project,Seminar\n")
-            ReportType.ROOM_UTILIZATION, ReportType.LAB_UTILIZATION -> out.write("Room,Total Slots,Used Slots,Utilization %\n")
-            ReportType.FREE_PERIODS -> out.write("Day,Period,Start,End\n")
-            ReportType.MISSING_HOURS -> out.write("Subject,Code,Department,Required,Allocated,Missing\n")
-            ReportType.CONFLICTS -> out.write("Type,Message,Suggestion\n")
+            ReportType.FACULTY_WORKLOAD -> {
+                out.write("Faculty,Department,Max Hours,Assigned Hours,Utilization %\n")
+                facultyWorkload.forEach { w ->
+                    out.write("${w.facultyName.csv()},${w.departmentName.csv()},${w.maxHours},${w.assignedHours},${"%.1f".format(w.utilizationPercent)}\n")
+                }
+            }
+            ReportType.DEPARTMENT_SUMMARY -> {
+                out.write("Department,Code,Head,Faculty Count,Subject Count\n")
+                departmentSummaries.forEach { d ->
+                    out.write("${d.departmentName.csv()},${d.departmentCode.csv()},${d.headName.csv()},${d.facultyCount},${d.subjectCount}\n")
+                }
+            }
+            ReportType.SUBJECT_ALLOCATION -> {
+                out.write("Department,Total Subjects,Theory,Lab,Project,Seminar\n")
+                subjectAllocations.forEach { s ->
+                    out.write("${s.departmentName.csv()},${s.totalSubjects},${s.theoryCount},${s.labCount},${s.projectCount},${s.seminarCount}\n")
+                }
+            }
+            ReportType.ROOM_UTILIZATION, ReportType.LAB_UTILIZATION -> {
+                out.write("Room,Total Slots,Used Slots,Utilization %\n")
+                val utils = if (reportType == ReportType.ROOM_UTILIZATION) roomUtilizations else labUtilizations
+                utils.forEach { r ->
+                    out.write("${r.roomName.csv()},${r.totalSlots},${r.usedSlots},${"%.1f".format(r.utilizationPercent)}\n")
+                }
+            }
+            ReportType.FREE_PERIODS -> {
+                out.write("Day,Period,Start,End\n")
+                freePeriods.forEach { f ->
+                    out.write("${f.dayName.csv()},${f.periodNumber},${f.startTime.csv()},${f.endTime.csv()}\n")
+                }
+            }
+            ReportType.MISSING_HOURS -> {
+                out.write("Subject,Code,Department,Required,Allocated,Missing\n")
+                missingHours.forEach { m ->
+                    out.write("${m.subjectName.csv()},${m.subjectCode.csv()},${m.departmentName.csv()},${m.requiredHours},${m.allocatedHours},${m.missingHours}\n")
+                }
+            }
+            ReportType.CONFLICTS -> {
+                out.write("Type,Message,Suggestion\n")
+                conflicts.forEach { c ->
+                    out.write("${c.type.name.csv()},${c.message.csv()},${c.suggestion.csv()}\n")
+                }
+            }
         }
     }
     return file
