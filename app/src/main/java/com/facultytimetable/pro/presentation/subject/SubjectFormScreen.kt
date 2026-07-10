@@ -68,7 +68,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-private data class SubjectFormState(
+data class SubjectFormState(
     val name: String = "",
     val code: String = "",
     val type: SubjectType = SubjectType.THEORY,
