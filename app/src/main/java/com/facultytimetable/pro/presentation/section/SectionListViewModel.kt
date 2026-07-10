@@ -6,7 +6,11 @@ import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
 import com.facultytimetable.pro.data.local.db.dao.DepartmentDao
 import com.facultytimetable.pro.data.local.db.dao.RoomDao
 import com.facultytimetable.pro.data.local.db.dao.SemesterDao
+import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
+import com.facultytimetable.pro.data.local.db.entity.DepartmentEntity
+import com.facultytimetable.pro.data.local.db.entity.RoomEntity
 import com.facultytimetable.pro.data.local.db.entity.SectionEntity
+import com.facultytimetable.pro.data.local.db.entity.SemesterEntity
 import com.facultytimetable.pro.domain.repository.SectionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,13 +47,26 @@ class SectionListViewModel @Inject constructor(
     private val searchQuery = MutableStateFlow("")
 
     val state: StateFlow<SectionListState> = combine(
-        sectionRepository.getAllSections(),
-        semesterDao.getAllSemesters(),
-        departmentDao.getAllDepartments(),
-        academicYearDao.getAllAcademicYears(),
-        roomDao.getAllRooms(),
-        searchQuery
-    ) { sections, semesters, departments, years, rooms, query ->
+        arrayOf(
+            sectionRepository.getAllSections(),
+            semesterDao.getAllSemesters(),
+            departmentDao.getAllDepartments(),
+            academicYearDao.getAllAcademicYears(),
+            roomDao.getAllRooms(),
+            searchQuery
+        )
+    ) { args ->
+        @Suppress("UNCHECKED_CAST")
+        val sections = args[0] as List<SectionEntity>
+        @Suppress("UNCHECKED_CAST")
+        val semesters = args[1] as List<SemesterEntity>
+        @Suppress("UNCHECKED_CAST")
+        val departments = args[2] as List<DepartmentEntity>
+        @Suppress("UNCHECKED_CAST")
+        val years = args[3] as List<AcademicYearEntity>
+        @Suppress("UNCHECKED_CAST")
+        val rooms = args[4] as List<RoomEntity>
+        val query = args[5] as String
         val semMap = semesters.associateBy { it.id }
         val deptMap = departments.associateBy { it.id }
         val yearMap = years.associateBy { it.id }
