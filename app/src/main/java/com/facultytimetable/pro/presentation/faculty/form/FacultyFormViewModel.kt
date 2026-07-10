@@ -211,7 +211,7 @@ class FacultyFormViewModel @Inject constructor(
                     email = s.email.trim(),
                     phone = s.phone.trim(),
                     designation = s.designation,
-                    departmentId = s.departmentId,
+                    departmentId = s.departmentId ?: 0,
                     qualification = s.qualification.trim(),
                     employeeId = s.employeeId.trim(),
                     facultyCode = s.facultyCode.trim(),

@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.facultytimetable.pro.data.local.db.entity.HolidayEntity
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppFAB
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
@@ -62,7 +63,7 @@ fun HolidayListScreen(
     viewModel: HolidayListViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    var showDeleteDialog by remember { mutableStateOf<HolidayUi?>(null) }
+    var showDeleteDialog by remember { mutableStateOf<HolidayEntity?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -143,15 +144,10 @@ fun HolidayListScreen(
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.SemiBold
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        ColorChip(
-                                            label = holiday.type.name,
-                                            color = MaterialTheme.colorScheme.tertiary
-                                        )
                                         if (holiday.isRecurring) {
-                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             ColorChip(
-                                                label = "Repeats",
+                                                label = "Annual",
                                                 color = MaterialTheme.colorScheme.tertiary
                                             )
                                         }
@@ -162,14 +158,6 @@ fun HolidayListScreen(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    if (holiday.description.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = holiday.description,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
                                 }
                                 IconButton(onClick = { navController.navigate(Routes.holidayForm(holiday.id)) }) {
                                     Icon(

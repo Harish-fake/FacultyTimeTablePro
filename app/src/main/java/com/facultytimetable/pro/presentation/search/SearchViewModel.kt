@@ -111,15 +111,15 @@ class SearchViewModel @Inject constructor(
         }
 
         for (r in rooms) {
-            if (r.name.contains(q, true) || r.building.contains(q, true) || r.code.contains(q, true)) {
+            if (r.name.contains(q, true) || r.building.contains(q, true) || r.roomNumber.contains(q, true)) {
                 results.add(SearchSuggestion("Room", r.id, r.name, "${r.type.name} | ${r.building}"))
             }
         }
 
         for (l in labs) {
-            if (l.name.contains(q, true) || l.code.contains(q, true) || l.equipment.contains(q, true)) {
+            if (l.name.contains(q, true) || l.roomNumber.contains(q, true) || l.equipment.contains(q, true)) {
                 val deptName = deptMap[l.departmentId]?.name ?: ""
-                results.add(SearchSuggestion("Lab", l.id, l.name, "$deptName | ${l.code}"))
+                results.add(SearchSuggestion("Lab", l.id, l.name, "$deptName | ${l.roomNumber}"))
             }
         }
 
@@ -132,20 +132,20 @@ class SearchViewModel @Inject constructor(
 
         val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
         for (h in holidays) {
-            if (h.name.contains(q, true) || h.type.name.contains(q, true)) {
-                results.add(SearchSuggestion("Holiday", h.id, h.name, "${h.type.name} | ${dateFormat.format(Date(h.date))}"))
+            if (h.name.contains(q, true)) {
+                results.add(SearchSuggestion("Holiday", h.id, h.name, dateFormat.format(Date(h.date))))
             }
         }
 
         for (s in semesters) {
-            if (s.name.contains(q, true) || s.code.contains(q, true)) {
-                results.add(SearchSuggestion("Semester", s.id, "${s.name} (${s.code})", "${dateFormat.format(Date(s.startDate))} - ${dateFormat.format(Date(s.endDate))}"))
+            if (s.name.contains(q, true) || s.semesterNumber.toString().contains(q)) {
+                results.add(SearchSuggestion("Semester", s.id, s.name, "Semester ${s.semesterNumber}"))
             }
         }
 
         for (y in years) {
-            if (y.name.contains(q, true) || y.code.contains(q, true)) {
-                results.add(SearchSuggestion("Academic Year", y.id, y.name, y.code))
+            if (y.name.contains(q, true)) {
+                results.add(SearchSuggestion("Academic Year", y.id, y.name, ""))
             }
         }
 

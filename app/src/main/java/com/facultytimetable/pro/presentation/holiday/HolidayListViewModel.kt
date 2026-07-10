@@ -16,39 +16,8 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
-enum class HolidayType {
-    PUBLIC, NATIONAL, INSTITUTE, EXAM, OTHER
-}
-
-data class HolidayUi(
-    val id: Long = 0,
-    val name: String,
-    val date: Long,
-    val type: HolidayType = HolidayType.OTHER,
-    val description: String = "",
-    val isRecurring: Boolean = false
-) {
-    fun toEntity(): HolidayEntity = HolidayEntity(
-        id = id,
-        name = name,
-        date = date,
-        type = type,
-        description = description,
-        isRecurring = isRecurring
-    )
-}
-
-fun HolidayEntity.toUi() = HolidayUi(
-    id = id,
-    name = name,
-    date = date,
-    type = type,
-    description = description,
-    isRecurring = isRecurring
-)
-
 data class HolidayListState(
-    val holidays: List<HolidayUi> = emptyList(),
+    val holidays: List<HolidayEntity> = emptyList(),
     val searchQuery: String = "",
     val isLoading: Boolean = true
 )
@@ -68,7 +37,7 @@ class HolidayListViewModel @Inject constructor(
         val filtered = if (query.isBlank()) holidays
         else holidays.filter { it.name.contains(query, ignoreCase = true) }
         HolidayListState(
-            holidays = filtered.map { it.toUi() },
+            holidays = filtered,
             searchQuery = query,
             isLoading = false
         )
@@ -78,15 +47,15 @@ class HolidayListViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun deleteHoliday(holiday: HolidayUi) {
+    fun deleteHoliday(holiday: HolidayEntity) {
         viewModelScope.launch {
             holidayDao.deleteById(holiday.id)
         }
     }
 
-    fun restoreHoliday(holiday: HolidayUi) {
+    fun restoreHoliday(holiday: HolidayEntity) {
         viewModelScope.launch {
-            holidayDao.insert(holiday.toEntity())
+            holidayDao.insert(holiday)
         }
     }
 
