@@ -63,6 +63,7 @@ import com.facultytimetable.pro.presentation.subject.SubjectListScreen
 import com.facultytimetable.pro.presentation.timeslot.TimeSlotConfigScreen
 import com.facultytimetable.pro.presentation.timetable.generator.GeneratorScreen
 import com.facultytimetable.pro.presentation.timetable.grid.TimetableGridScreen
+import com.facultytimetable.pro.presentation.timetable.print.PrintTimetableScreen
 import com.facultytimetable.pro.presentation.workingday.WorkingDayScreen
 
 data class BottomNavItem(val route: String, val label: String, val icon: ImageVector)
@@ -122,6 +123,7 @@ fun NavGraph() {
             composable(Routes.DASHBOARD) { DashboardScreen(navController = navController) }
             composable(Routes.FACULTY_LIST) { FacultyListScreen(navController = navController) }
             composable(Routes.TIMETABLE_GRID) { TimetableGridScreen(navController = navController) }
+            composable(Routes.TIMETABLE_PRINT) { PrintTimetableScreen(navController = navController) }
             composable(Routes.SETTINGS) { SettingsScreen(navController = navController) }
 
             composable(Routes.FACULTY_DETAIL, arguments = listOf(navArgument("facultyId") { type = NavType.LongType })) {

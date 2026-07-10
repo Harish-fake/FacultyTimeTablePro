@@ -157,9 +157,10 @@ fun TimetableGridScreen(
                                 leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Print / Export PDF") },
+                                text = { Text("Print / Professional View") },
                                 onClick = {
                                     showMenu = false
+                                    navController.navigate(Routes.TIMETABLE_PRINT)
                                 },
                                 leadingIcon = {
                                     Icon(Icons.Default.Print, contentDescription = null)

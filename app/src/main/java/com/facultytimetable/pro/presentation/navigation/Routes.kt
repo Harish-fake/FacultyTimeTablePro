@@ -30,6 +30,7 @@ object Routes {
     const val TIMETABLE_DEPARTMENT = "timetable/department/{departmentId}"
     const val TIMETABLE_ROOM = "timetable/room/{roomId}"
     const val TIMETABLE_SECTION = "timetable/section/{sectionId}"
+    const val TIMETABLE_PRINT = "timetable/print"
     const val TIMETABLE_GENERATOR = "timetable/generator"
     const val SEARCH = "search"
     const val REPORTS = "reports"

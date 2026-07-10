@@ -70,6 +70,8 @@ fun FacultyLeaveScreen(
     val state by viewModel.state.collectAsState()
     var showBottomSheet by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf<LeaveWithFaculty?>(null) }
+    var editingLeave by remember { mutableStateOf<LeaveWithFaculty?>(null) }
+    val showForm = showBottomSheet || editingLeave != null
 
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
@@ -99,6 +101,7 @@ fun FacultyLeaveScreen(
                 items(state.leaves, key = { it.leave.id }) { leaveWithFaculty ->
                     LeaveCard(
                         leaveWithFaculty = leaveWithFaculty,
+                        onEdit = { editingLeave = leaveWithFaculty },
                         onDelete = { showDeleteDialog = leaveWithFaculty }
                     )
                 }
@@ -122,14 +125,23 @@ fun FacultyLeaveScreen(
         )
     }
 
-    if (showBottomSheet) {
+    if (showForm) {
         LeaveFormBottomSheet(
             faculties = state.faculties,
             preSelectedFacultyId = state.selectedFacultyId,
-            onDismiss = { showBottomSheet = false },
-            onSave = { leave ->
-                viewModel.insertLeave(leave)
+            editingLeave = editingLeave,
+            onDismiss = {
                 showBottomSheet = false
+                editingLeave = null
+            },
+            onSave = { leave ->
+                if (editingLeave != null) {
+                    viewModel.updateLeave(leave)
+                } else {
+                    viewModel.insertLeave(leave)
+                }
+                showBottomSheet = false
+                editingLeave = null
             }
         )
     }
@@ -166,6 +178,7 @@ private fun FacultyFilterBar(
 @Composable
 private fun LeaveCard(
     leaveWithFaculty: LeaveWithFaculty,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val leave = leaveWithFaculty.leave
@@ -176,7 +189,7 @@ private fun LeaveCard(
             .format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
     }
 
-    AppCard {
+    AppCard(onClick = onEdit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -250,17 +263,20 @@ private fun LeaveCard(
 private fun LeaveFormBottomSheet(
     faculties: List<com.facultytimetable.pro.data.local.db.entity.FacultyEntity>,
     preSelectedFacultyId: Long?,
+    editingLeave: LeaveWithFaculty? = null,
     onDismiss: () -> Unit,
     onSave: (FacultyLeaveEntity) -> Unit
 ) {
-    var selectedFaculty by remember {
-        mutableStateOf(preSelectedFacultyId?.let { id -> faculties.find { it.id == id } })
+    val existing = editingLeave?.leave
+    var selectedFaculty by remember(existing) {
+        mutableStateOf(existing?.let { l -> faculties.find { it.id == l.facultyId } }
+            ?: preSelectedFacultyId?.let { id -> faculties.find { it.id == id } })
     }
-    var leaveDate by remember { mutableStateOf<Long?>(null) }
-    var startTime by remember { mutableStateOf("") }
-    var endTime by remember { mutableStateOf("") }
-    var reason by remember { mutableStateOf("") }
-    var isApproved by remember { mutableStateOf(false) }
+    var leaveDate by remember(existing) { mutableStateOf(existing?.leaveDate) }
+    var startTime by remember(existing) { mutableStateOf(existing?.startTime ?: "") }
+    var endTime by remember(existing) { mutableStateOf(existing?.endTime ?: "") }
+    var reason by remember(existing) { mutableStateOf(existing?.reason ?: "") }
+    var isApproved by remember(existing) { mutableStateOf(existing?.isApproved ?: false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var timeError by remember { mutableStateOf(false) }
 
@@ -279,7 +295,7 @@ private fun LeaveFormBottomSheet(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "Add Leave",
+                text = if (editingLeave != null) "Edit Leave" else "Add Leave",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -371,6 +387,7 @@ private fun LeaveFormBottomSheet(
                     }
                     onSave(
                         FacultyLeaveEntity(
+                            id = existing?.id ?: 0L,
                             facultyId = selectedFaculty!!.id,
                             leaveDate = leaveDate!!,
                             startTime = startTime.trim(),
