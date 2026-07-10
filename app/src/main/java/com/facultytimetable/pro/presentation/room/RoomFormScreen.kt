@@ -10,12 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,119 +26,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import com.facultytimetable.pro.data.local.db.entity.RoomEntity
 import com.facultytimetable.pro.data.local.db.entity.RoomType
-import com.facultytimetable.pro.data.local.db.entity.RoomType.CLASSROOM
-import com.facultytimetable.pro.data.local.db.entity.RoomType.LAB
-import com.facultytimetable.pro.domain.repository.RoomRepository
+import com.facultytimetable.pro.presentation.common.components.ActionButton
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.DropdownSelector
 import com.facultytimetable.pro.presentation.common.components.LoadingState
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import javax.inject.Inject
-
-data class RoomFormState(
-    val name: String = "",
-    val capacity: String = "60",
-    val type: RoomType = CLASSROOM,
-    val building: String = "",
-    val floor: String = "",
-    val hasProjector: Boolean = true,
-    val hasSmartBoard: Boolean = false,
-    val hasAC: Boolean = false,
-    val labEquipment: String = "",
-    val isActive: Boolean = true,
-    val isLoading: Boolean = true,
-    val isSaving: Boolean = false,
-    val error: String? = null,
-    val saveSuccess: Boolean = false
-)
-
-@HiltViewModel
-class RoomFormViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
-    private val roomRepository: RoomRepository
-) : ViewModel() {
-
-    private val roomId: Long? = savedStateHandle.get<Long>("roomId")?.takeIf { it > 0 }
-    private val _state = MutableStateFlow(RoomFormState())
-    val state: StateFlow<RoomFormState> = _state
-
-    init { loadData() }
-
-    private fun loadData() {
-        if (roomId != null) {
-            viewModelScope.launch {
-                val room = roomRepository.getRoomById(roomId)
-                if (room != null) {
-                    _state.value = _state.value.copy(
-                        name = room.name,
-                        capacity = room.capacity.toString(),
-                        type = room.type,
-                        building = room.building,
-                        floor = room.floor,
-                        hasProjector = room.hasProjector,
-                        hasAC = room.hasAC,
-                        isActive = room.isActive,
-                        isLoading = false
-                    )
-                }
-            }
-        } else {
-            _state.value = _state.value.copy(isLoading = false)
-        }
-    }
-
-    fun onNameChange(v: String) { _state.value = _state.value.copy(name = v, error = null) }
-    fun onCapacityChange(v: String) { _state.value = _state.value.copy(capacity = v) }
-    fun onTypeChange(t: RoomType) { _state.value = _state.value.copy(type = t) }
-    fun onBuildingChange(v: String) { _state.value = _state.value.copy(building = v) }
-    fun onFloorChange(v: String) { _state.value = _state.value.copy(floor = v) }
-    fun onProjectorChange(v: Boolean) { _state.value = _state.value.copy(hasProjector = v) }
-    fun onSmartBoardChange(v: Boolean) { _state.value = _state.value.copy(hasSmartBoard = v) }
-    fun onACChange(v: Boolean) { _state.value = _state.value.copy(hasAC = v) }
-    fun onLabEquipmentChange(v: String) { _state.value = _state.value.copy(labEquipment = v) }
-    fun onActiveChange(v: Boolean) { _state.value = _state.value.copy(isActive = v) }
-
-    fun save() {
-        val s = _state.value
-        if (s.name.isBlank()) { _state.value = s.copy(error = "Room name is required"); return }
-        if (s.building.isBlank()) { _state.value = s.copy(error = "Building is required"); return }
-        if (s.capacity.toIntOrNull() == null || (s.capacity.toIntOrNull() ?: 0) <= 0) {
-            _state.value = s.copy(error = "Valid capacity is required"); return
-        }
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isSaving = true)
-            try {
-                val entity = RoomEntity(
-                    id = roomId ?: 0,
-                    name = s.name.trim(),
-                    capacity = s.capacity.toIntOrNull() ?: 60,
-                    type = s.type,
-                    building = s.building.trim(),
-                    floor = s.floor.trim(),
-                    hasProjector = s.hasProjector,
-                    hasAC = s.hasAC,
-                    isActive = s.isActive
-                )
-                if (roomId != null) roomRepository.update(entity)
-                else roomRepository.insert(entity)
-                _state.value = _state.value.copy(isSaving = false, saveSuccess = true)
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isSaving = false, error = e.message ?: "Save failed")
-            }
-        }
-    }
-
-    fun clearError() { _state.value = _state.value.copy(error = null) }
-}
+import com.facultytimetable.pro.presentation.common.components.SectionHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,10 +60,13 @@ fun RoomFormScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
+                SectionHeader("Basic Information")
+
                 OutlinedTextField(
                     value = state.name,
                     onValueChange = viewModel::onNameChange,
                     label = { Text("Room Number / Name *") },
+                    placeholder = { Text("e.g. 101, Lab-1") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = MaterialTheme.shapes.medium,
@@ -178,40 +74,48 @@ fun RoomFormScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = state.building,
-                    onValueChange = viewModel::onBuildingChange,
-                    label = { Text("Building *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = state.floor,
-                    onValueChange = viewModel::onFloorChange,
-                    label = { Text("Floor") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = state.capacity,
-                    onValueChange = viewModel::onCapacityChange,
-                    label = { Text("Capacity *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                        imeAction = ImeAction.Next
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = state.building,
+                        onValueChange = viewModel::onBuildingChange,
+                        label = { Text("Building *") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
-                )
+                    OutlinedTextField(
+                        value = state.floor,
+                        onValueChange = viewModel::onFloorChange,
+                        label = { Text("Floor") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = state.roomNumber,
+                        onValueChange = viewModel::onRoomNumberChange,
+                        label = { Text("Room Number") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                    )
+                    OutlinedTextField(
+                        value = state.capacity,
+                        onValueChange = viewModel::onCapacityChange,
+                        label = { Text("Capacity *") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next)
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 DropdownSelector(
@@ -222,51 +126,44 @@ fun RoomFormScreen(
                     onItemSelected = viewModel::onTypeChange,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    "Equipment",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                ToggleRow(
-                    label = "Has Projector?",
-                    checked = state.hasProjector,
-                    onCheckedChange = viewModel::onProjectorChange
-                )
-                ToggleRow(
-                    label = "Has Smart Board?",
-                    checked = state.hasSmartBoard,
-                    onCheckedChange = viewModel::onSmartBoardChange
-                )
-                ToggleRow(
-                    label = "Has AC?",
-                    checked = state.hasAC,
-                    onCheckedChange = viewModel::onACChange
-                )
-
-                if (state.type == LAB) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = state.labEquipment,
-                        onValueChange = viewModel::onLabEquipmentChange,
-                        label = { Text("Lab Equipment") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        maxLines = 5,
-                        shape = MaterialTheme.shapes.medium,
-                        placeholder = { Text("List lab equipment...") },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                    )
-                }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                ToggleRow(
-                    label = "Active",
-                    checked = state.isActive,
-                    onCheckedChange = viewModel::onActiveChange
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SectionHeader("Equipment")
+
+                ToggleRow("Has Projector", state.hasProjector, viewModel::onProjectorChange)
+                ToggleRow("Has AC", state.hasAC, viewModel::onACChange)
+                ToggleRow("Has Smart Board", state.hasSmartBoard, viewModel::onSmartBoardChange)
+                ToggleRow("Is Lab", state.isLab, viewModel::onLabChange)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = state.equipment,
+                    onValueChange = viewModel::onEquipmentChange,
+                    label = { Text("Equipment Details") },
+                    placeholder = { Text("e.g. Computers, Projector, Whiteboard") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4,
+                    shape = MaterialTheme.shapes.medium,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = state.availability,
+                    onValueChange = viewModel::onAvailabilityChange,
+                    label = { Text("Availability Notes") },
+                    placeholder = { Text("e.g. Available Mon-Fri, 9AM-5PM") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4,
+                    shape = MaterialTheme.shapes.medium,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
                 )
 
                 if (state.error != null) {
@@ -279,49 +176,24 @@ fun RoomFormScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(
+                ActionButton(
+                    text = if (roomId != null) "Update Room" else "Add Room",
                     onClick = viewModel::save,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    enabled = !state.isSaving,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text(
-                        if (roomId != null) "Update Room" else "Add Room",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
+                    enabled = !state.isSaving
+                )
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
 }
 
 @Composable
-private fun ToggleRow(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
+private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        )
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

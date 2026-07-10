@@ -11,6 +11,7 @@ data class AcademicYearEntity(
     val startDate: Long,
     val endDate: Long,
     val isCurrent: Boolean = false,
+    val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

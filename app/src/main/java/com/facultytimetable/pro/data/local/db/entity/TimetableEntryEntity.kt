@@ -45,8 +45,9 @@ import androidx.room.PrimaryKey
         Index(value = ["facultyId"]),
         Index(value = ["roomId"]),
         Index(value = ["timeSlotId"]),
-        Index(value = ["facultyId", "timeSlotId", "dayOfWeek"], unique = true),
-        Index(value = ["roomId", "timeSlotId", "dayOfWeek"], unique = true)
+        Index(value = ["facultyId", "timeSlotId", "dayOfWeek"]),
+        Index(value = ["roomId", "timeSlotId", "dayOfWeek"]),
+        Index(value = ["sectionId", "dayOfWeek", "timeSlotId"])
     ]
 )
 data class TimetableEntryEntity(
@@ -61,6 +62,7 @@ data class TimetableEntryEntity(
     val weekType: WeekType = WeekType.ALL,
     val color: Int = 0,
     val notes: String = "",
+    val isLocked: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

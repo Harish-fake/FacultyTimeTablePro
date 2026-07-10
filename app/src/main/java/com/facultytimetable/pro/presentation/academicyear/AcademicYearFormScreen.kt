@@ -35,96 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
-import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
 import com.facultytimetable.pro.presentation.common.components.ActionButton
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import javax.inject.Inject
-
-data class AcademicYearFormState(
-    val name: String = "",
-    val startDate: Long? = null,
-    val endDate: Long? = null,
-    val isCurrent: Boolean = false,
-    val isEditing: Boolean = false,
-    val isLoading: Boolean = true,
-    val isSaving: Boolean = false,
-    val error: String? = null,
-    val saveSuccess: Boolean = false
-)
-
-@HiltViewModel
-class AcademicYearFormViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
-    private val academicYearDao: AcademicYearDao
-) : ViewModel() {
-
-    private val yearId: Long? = savedStateHandle.get<Long>("yearId")?.takeIf { it > 0 }
-    private val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-    private val _state = MutableStateFlow(AcademicYearFormState())
-    val state: StateFlow<AcademicYearFormState> = _state
-
-    init { loadData() }
-
-    private fun loadData() {
-        viewModelScope.launch {
-            if (yearId != null) {
-                val year = academicYearDao.getAcademicYearById(yearId)
-                if (year != null) {
-                    _state.value = _state.value.copy(
-                        name = year.name, startDate = year.startDate, endDate = year.endDate,
-                        isCurrent = year.isCurrent, isEditing = true, isLoading = false
-                    )
-                    return@launch
-                }
-            }
-            _state.value = _state.value.copy(isLoading = false)
-        }
-    }
-
-    fun onNameChange(v: String) { _state.value = _state.value.copy(name = v, error = null) }
-    fun onStartDateSelected(d: Long) { _state.value = _state.value.copy(startDate = d) }
-    fun onEndDateSelected(d: Long) { _state.value = _state.value.copy(endDate = d) }
-    fun onIsCurrentChange(v: Boolean) { _state.value = _state.value.copy(isCurrent = v) }
-
-    fun formatDate(epoch: Long): String = dateFormat.format(Date(epoch))
-
-    fun save() {
-        val s = _state.value
-        if (s.name.isBlank()) { _state.value = s.copy(error = "Name is required"); return }
-        if (s.startDate == null) { _state.value = s.copy(error = "Start date is required"); return }
-        if (s.endDate == null) { _state.value = s.copy(error = "End date is required"); return }
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isSaving = true)
-            try {
-                if (s.isCurrent) {
-                    academicYearDao.clearCurrentYear()
-                }
-                val entity = AcademicYearEntity(
-                    id = yearId ?: 0, name = s.name,
-                    startDate = s.startDate, endDate = s.endDate,
-                    isCurrent = s.isCurrent
-                )
-                if (yearId != null) academicYearDao.update(entity)
-                else academicYearDao.insert(entity)
-                _state.value = _state.value.copy(isSaving = false, saveSuccess = true)
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isSaving = false, error = e.message ?: "Save failed")
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,7 +64,9 @@ fun AcademicYearFormScreen(
                 value = state.name, onValueChange = viewModel::onNameChange,
                 label = { Text("Year Name *") }, placeholder = { Text("e.g. 2024-2025") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
-                shape = MaterialTheme.shapes.medium, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                shape = MaterialTheme.shapes.medium, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                isError = state.nameError != null,
+                supportingText = state.nameError?.let { { Text(it) } }
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -161,7 +76,16 @@ fun AcademicYearFormScreen(
             ) {
                 Icon(Icons.Default.DateRange, contentDescription = null)
                 Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-                Text(if (state.startDate != null) "Start: ${viewModel.formatDate(state.startDate!!)}" else "Select Start Date")
+                Text(
+                    if (state.startDate != null) "Start: ${viewModel.formatDate(state.startDate)}"
+                    else "Select Start Date"
+                )
+            }
+            if (state.startDateError != null) {
+                Text(
+                    state.startDateError!!, color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
             }
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -171,7 +95,16 @@ fun AcademicYearFormScreen(
             ) {
                 Icon(Icons.Default.DateRange, contentDescription = null)
                 Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-                Text(if (state.endDate != null) "End: ${viewModel.formatDate(state.endDate!!)}" else "Select End Date")
+                Text(
+                    if (state.endDate != null) "End: ${viewModel.formatDate(state.endDate)}"
+                    else "Select End Date"
+                )
+            }
+            if (state.endDateError != null) {
+                Text(
+                    state.endDateError!!, color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
             }
             Spacer(modifier = Modifier.height(12.dp))
 

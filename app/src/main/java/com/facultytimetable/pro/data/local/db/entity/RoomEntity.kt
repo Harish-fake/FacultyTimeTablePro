@@ -16,13 +16,18 @@ data class RoomEntity(
     val type: RoomType = RoomType.CLASSROOM,
     val building: String = "",
     val floor: String = "",
+    val roomNumber: String = "",
     val hasProjector: Boolean = true,
     val hasAC: Boolean = false,
+    val hasSmartBoard: Boolean = false,
+    val equipment: String = "",
+    val availability: String = "",
+    val isLab: Boolean = false,
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
 
 enum class RoomType {
-    CLASSROOM, LAB, SEMINAR_HALL, AUDITORIUM, LIBRARY
+    CLASSROOM, LAB, SEMINAR_HALL, AUDITORIUM, LIBRARY, LECTURE_HALL, SMART_CLASSROOM
 }

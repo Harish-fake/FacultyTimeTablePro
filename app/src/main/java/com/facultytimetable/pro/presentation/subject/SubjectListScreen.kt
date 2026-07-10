@@ -41,13 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.facultytimetable.pro.data.local.db.entity.SubjectEntity
 import com.facultytimetable.pro.data.local.db.entity.SubjectType
-import com.facultytimetable.pro.domain.repository.DepartmentRepository
-import com.facultytimetable.pro.domain.repository.SubjectRepository
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppFAB
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
@@ -62,59 +58,6 @@ import com.facultytimetable.pro.presentation.theme.SubjectProject
 import com.facultytimetable.pro.presentation.theme.SubjectSeminar
 import com.facultytimetable.pro.presentation.theme.SubjectSports
 import com.facultytimetable.pro.presentation.theme.SubjectTheory
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
-import javax.inject.Inject
-
-data class SubjectListState(
-    val subjects: List<SubjectEntity> = emptyList(),
-    val searchQuery: String = "",
-    val isLoading: Boolean = true,
-    val departmentMap: Map<Long, String> = emptyMap()
-)
-
-@HiltViewModel
-class SubjectListViewModel @Inject constructor(
-    private val subjectRepository: SubjectRepository,
-    private val departmentRepository: DepartmentRepository
-) : ViewModel() {
-
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-
-    val state: StateFlow<SubjectListState> = combine(
-        subjectRepository.getAllSubjects(),
-        departmentRepository.getAllDepartments(),
-        _searchQuery
-    ) { subjects, departments, query ->
-        val deptMap = departments.associate { it.id to it.name }
-        val filtered = if (query.isBlank()) subjects
-        else subjects.filter {
-            it.name.contains(query, ignoreCase = true) ||
-            it.code.contains(query, ignoreCase = true)
-        }
-        SubjectListState(
-            subjects = filtered,
-            searchQuery = query,
-            isLoading = false,
-            departmentMap = deptMap
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SubjectListState())
-
-    fun onSearchQueryChange(query: String) {
-        _searchQuery.value = query
-    }
-
-    fun deleteSubject(subject: SubjectEntity) {
-        viewModelScope.launch { subjectRepository.delete(subject) }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,40 +69,49 @@ fun SubjectListScreen(
     var showDeleteDialog by remember { mutableStateOf<SubjectEntity?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(title = "Subjects", onBackClick = { navController.popBackStack() })
-
-        Column(modifier = Modifier.fillMaxSize()) {
-            if (state.isLoading) {
-                LoadingState()
-            } else {
-                SearchBar(
-                    query = state.searchQuery,
-                    onQueryChange = viewModel::onSearchQueryChange,
-                    placeholder = "Search by name or code...",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-
-                if (state.subjects.isEmpty()) {
-                    EmptyState(
-                        title = "No Subjects",
-                        message = if (state.searchQuery.isNotBlank()) "No subjects match your search"
-                        else "Add subjects to get started with timetable creation"
+        AppTopBar(
+            title = "Subjects",
+            actions = {
+                if (state.subjects.isNotEmpty()) {
+                    Text(
+                        text = "${state.subjects.size}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 16.dp)
                     )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(16.dp)
-                    ) {
-                        items(state.subjects, key = { it.id }) { subject ->
-                            SubjectCard(
-                                subject = subject,
-                                departmentName = state.departmentMap[subject.departmentId] ?: "",
-                                onEdit = { navController.navigate(Routes.subjectForm(subject.id)) },
-                                onDelete = { showDeleteDialog = subject }
-                            )
-                        }
-                    }
+                }
+            }
+        )
+
+        SearchBar(
+            query = state.searchQuery,
+            onQueryChange = viewModel::onSearchQueryChange,
+            placeholder = "Search by name, code, or department...",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        if (state.isLoading) {
+            LoadingState()
+        } else if (state.subjects.isEmpty()) {
+            EmptyState(
+                title = if (state.searchQuery.isNotBlank()) "No Results Found" else "No Subjects",
+                message = if (state.searchQuery.isNotBlank()) "Try adjusting your search terms"
+                else "Tap the + button below to add your first subject"
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(state.subjects, key = { it.id }) { subject ->
+                    SubjectCard(
+                        subject = subject,
+                        departmentName = state.departmentNames[subject.departmentId] ?: "",
+                        onClick = { navController.navigate(Routes.subjectForm(subject.id)) },
+                        onEdit = { navController.navigate(Routes.subjectForm(subject.id)) },
+                        onDelete = { showDeleteDialog = subject }
+                    )
                 }
             }
         }
@@ -183,6 +135,7 @@ fun SubjectListScreen(
 private fun SubjectCard(
     subject: SubjectEntity,
     departmentName: String,
+    onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -208,7 +161,7 @@ private fun SubjectCard(
         else -> typeLabel
     }
 
-    AppCard(modifier = Modifier.animateContentSize(animationSpec = spring(stiffness = 300f))) {
+    AppCard(modifier = Modifier.animateContentSize(animationSpec = spring(stiffness = 300f)), onClick = onClick) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -249,7 +202,7 @@ private fun SubjectCard(
                         Text(
                             text = " | $departmentName",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

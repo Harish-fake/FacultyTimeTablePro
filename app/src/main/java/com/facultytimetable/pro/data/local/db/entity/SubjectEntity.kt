@@ -13,11 +13,18 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["departmentId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = SemesterEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["semesterId"],
+            onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [
         Index(value = ["code"], unique = true),
-        Index(value = ["departmentId"])
+        Index(value = ["departmentId"]),
+        Index(value = ["semesterId"])
     ]
 )
 data class SubjectEntity(
@@ -27,9 +34,17 @@ data class SubjectEntity(
     val code: String,
     val type: SubjectType = SubjectType.THEORY,
     val departmentId: Long,
+    val semesterId: Long = 0,
+    val credits: Int = 4,
     val hoursPerWeek: Int = 4,
     val labHoursPerWeek: Int = 0,
     val isLabRequired: Boolean = false,
+    val isProject: Boolean = false,
+    val isElective: Boolean = false,
+    val colorHex: String = "",
+    val facultyId: Long = 0,
+    val continuousHours: Int = 1,
+    val roomRequirement: String = "",
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

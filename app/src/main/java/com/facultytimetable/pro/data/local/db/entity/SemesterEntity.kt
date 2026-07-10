@@ -23,6 +23,8 @@ data class SemesterEntity(
     val name: String,
     val academicYearId: Long,
     val semesterNumber: Int,
+    val semesterType: String = "Regular",
+    val departmentIds: String = "",
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

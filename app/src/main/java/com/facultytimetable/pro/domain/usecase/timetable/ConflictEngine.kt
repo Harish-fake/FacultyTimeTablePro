@@ -24,48 +24,78 @@ class ConflictEngine @Inject constructor() {
 
         for (existing in existingEntries) {
             if (existing.id == entry.id) continue
+            if (existing.dayOfWeek != entry.dayOfWeek || existing.timeSlotId != entry.timeSlotId) continue
 
-            if (existing.dayOfWeek == entry.dayOfWeek && existing.timeSlotId == entry.timeSlotId) {
-                if (existing.facultyId == entry.facultyId) {
-                    conflicts.add(
-                        ConflictReport(
-                            type = ConflictType.FACULTY_CLASH,
-                            message = "Faculty already occupied at this time slot",
-                            suggestion = "Change time slot or use a different faculty member",
-                            facultyName = "",
-                            dayOfWeek = entry.dayOfWeek,
-                            periodNumber = entry.timeSlotId.toInt()
-                        )
+            if (existing.facultyId == entry.facultyId && entry.facultyId != 0L) {
+                conflicts.add(
+                    ConflictReport(
+                        type = ConflictType.FACULTY_CLASH,
+                        message = "Faculty is already assigned to another class at this time",
+                        suggestion = "Choose a different time slot or faculty member",
+                        facultyName = "",
+                        dayOfWeek = entry.dayOfWeek,
+                        periodNumber = entry.timeSlotId.toInt()
                     )
-                    suggestions.add("Try scheduling during a free period")
-                }
-
-                if (existing.roomId == entry.roomId) {
-                    conflicts.add(
-                        ConflictReport(
-                            type = ConflictType.ROOM_CLASH,
-                            message = "Room already occupied at this time slot",
-                            suggestion = "Use a different room",
-                            roomName = "",
-                            dayOfWeek = entry.dayOfWeek
-                        )
-                    )
-                    suggestions.add("Try an alternative room")
-                }
-
-                if (existing.sectionId == entry.sectionId) {
-                    conflicts.add(
-                        ConflictReport(
-                            type = ConflictType.SECTION_CLASH,
-                            message = "Section already has a class at this time",
-                            suggestion = "Schedule during a free period for this section",
-                            sectionName = "",
-                            dayOfWeek = entry.dayOfWeek
-                        )
-                    )
-                    suggestions.add("Check section availability")
-                }
+                )
+                suggestions.add("Try a different time slot")
             }
+
+            if (existing.roomId == entry.roomId && entry.roomId != 0L) {
+                conflicts.add(
+                    ConflictReport(
+                        type = ConflictType.ROOM_CLASH,
+                        message = "Room is already booked at this time slot",
+                        suggestion = "Select a different room or time slot",
+                        roomName = "",
+                        dayOfWeek = entry.dayOfWeek
+                    )
+                )
+                suggestions.add("Try a different room")
+            }
+
+            if (existing.sectionId == entry.sectionId) {
+                conflicts.add(
+                    ConflictReport(
+                        type = ConflictType.SECTION_CLASH,
+                        message = "This section already has a class scheduled here",
+                        suggestion = "Select a free period for this section",
+                        sectionName = "",
+                        dayOfWeek = entry.dayOfWeek
+                    )
+                )
+                suggestions.add("Check section free periods")
+            }
+        }
+
+        if (entry.subjectId == 0L) {
+            conflicts.add(
+                ConflictReport(
+                    type = ConflictType.FACULTY_CLASH,
+                    message = "No subject selected",
+                    suggestion = "Please select a subject",
+                    dayOfWeek = entry.dayOfWeek
+                )
+            )
+        }
+        if (entry.facultyId == 0L) {
+            conflicts.add(
+                ConflictReport(
+                    type = ConflictType.FACULTY_CLASH,
+                    message = "No faculty assigned",
+                    suggestion = "Please select a faculty member",
+                    dayOfWeek = entry.dayOfWeek
+                )
+            )
+        }
+        if (entry.roomId == 0L) {
+            conflicts.add(
+                ConflictReport(
+                    type = ConflictType.ROOM_CLASH,
+                    message = "No room assigned",
+                    suggestion = "Please select a room",
+                    dayOfWeek = entry.dayOfWeek
+                )
+            )
         }
 
         return ValidationResult(
@@ -86,7 +116,26 @@ class ConflictEngine @Inject constructor() {
             .filter { it.dayOfWeek == dayOfWeek }
             .map { it.timeSlotId }
             .toSet()
-
         return allSlots.filter { it !in usedSlots }
+    }
+
+    fun detectConflicts(
+        entries: List<TimetableEntryEntity>
+    ): List<ConflictReport> {
+        val conflicts = mutableListOf<ConflictReport>()
+
+        entries.groupBy { Triple(it.facultyId, it.dayOfWeek, it.timeSlotId) }
+            .filter { it.key.first != 0L && it.value.size > 1 }
+            .forEach { conflicts.add(ConflictReport(ConflictType.FACULTY_CLASH, "Faculty double-booked", "Reschedule one entry")) }
+
+        entries.groupBy { Triple(it.roomId, it.dayOfWeek, it.timeSlotId) }
+            .filter { it.key.first != 0L && it.value.size > 1 }
+            .forEach { conflicts.add(ConflictReport(ConflictType.ROOM_CLASH, "Room double-booked", "Move to different room")) }
+
+        entries.groupBy { Triple(it.sectionId, it.dayOfWeek, it.timeSlotId) }
+            .filter { it.value.size > 1 }
+            .forEach { conflicts.add(ConflictReport(ConflictType.SECTION_CLASH, "Section double-booked", "Reschedule one class")) }
+
+        return conflicts
     }
 }

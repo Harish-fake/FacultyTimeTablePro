@@ -8,9 +8,12 @@ import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
 import com.facultytimetable.pro.data.local.db.dao.AuditLogDao
 import com.facultytimetable.pro.data.local.db.dao.BackupHistoryDao
 import com.facultytimetable.pro.data.local.db.dao.DepartmentDao
+import com.facultytimetable.pro.data.local.db.dao.FacultyAssignmentDao
 import com.facultytimetable.pro.data.local.db.dao.FacultyDao
 import com.facultytimetable.pro.data.local.db.dao.FacultyLeaveDao
 import com.facultytimetable.pro.data.local.db.dao.HolidayDao
+import com.facultytimetable.pro.data.local.db.dao.LabDao
+import com.facultytimetable.pro.data.local.db.dao.RecycleBinDao
 import com.facultytimetable.pro.data.local.db.dao.RoomDao
 import com.facultytimetable.pro.data.local.db.dao.SectionDao
 import com.facultytimetable.pro.data.local.db.dao.SemesterDao
@@ -19,13 +22,17 @@ import com.facultytimetable.pro.data.local.db.dao.SubstituteFacultyDao
 import com.facultytimetable.pro.data.local.db.dao.TimeSlotDao
 import com.facultytimetable.pro.data.local.db.dao.TimetableEntryDao
 import com.facultytimetable.pro.data.local.db.dao.UserPreferenceDao
+import com.facultytimetable.pro.data.local.db.dao.WorkingDayDao
 import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
 import com.facultytimetable.pro.data.local.db.entity.AuditLogEntity
 import com.facultytimetable.pro.data.local.db.entity.BackupHistoryEntity
 import com.facultytimetable.pro.data.local.db.entity.DepartmentEntity
+import com.facultytimetable.pro.data.local.db.entity.FacultyAssignmentEntity
 import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
 import com.facultytimetable.pro.data.local.db.entity.FacultyLeaveEntity
 import com.facultytimetable.pro.data.local.db.entity.HolidayEntity
+import com.facultytimetable.pro.data.local.db.entity.LabEntity
+import com.facultytimetable.pro.data.local.db.entity.RecycleBinEntity
 import com.facultytimetable.pro.data.local.db.entity.RoomEntity
 import com.facultytimetable.pro.data.local.db.entity.SectionEntity
 import com.facultytimetable.pro.data.local.db.entity.SemesterEntity
@@ -34,6 +41,7 @@ import com.facultytimetable.pro.data.local.db.entity.SubstituteFacultyEntity
 import com.facultytimetable.pro.data.local.db.entity.TimeSlotEntity
 import com.facultytimetable.pro.data.local.db.entity.TimetableEntryEntity
 import com.facultytimetable.pro.data.local.db.entity.UserPreferenceEntity
+import com.facultytimetable.pro.data.local.db.entity.WorkingDayEntity
 
 @Database(
     entities = [
@@ -51,9 +59,13 @@ import com.facultytimetable.pro.data.local.db.entity.UserPreferenceEntity
         HolidayEntity::class,
         UserPreferenceEntity::class,
         BackupHistoryEntity::class,
-        AuditLogEntity::class
+        AuditLogEntity::class,
+        LabEntity::class,
+        FacultyAssignmentEntity::class,
+        RecycleBinEntity::class,
+        WorkingDayEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -74,6 +86,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userPreferenceDao(): UserPreferenceDao
     abstract fun backupHistoryDao(): BackupHistoryDao
     abstract fun auditLogDao(): AuditLogDao
+    abstract fun labDao(): LabDao
+    abstract fun facultyAssignmentDao(): FacultyAssignmentDao
+    abstract fun recycleBinDao(): RecycleBinDao
+    abstract fun workingDayDao(): WorkingDayDao
 
     companion object {
         const val DATABASE_NAME = "faculty_timetable_pro.db"

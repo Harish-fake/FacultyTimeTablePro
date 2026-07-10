@@ -17,7 +17,9 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index(value = ["departmentId"]),
-        Index(value = ["email"], unique = true)
+        Index(value = ["email"], unique = true),
+        Index(value = ["employeeId"], unique = true),
+        Index(value = ["facultyCode"])
     ]
 )
 data class FacultyEntity(
@@ -32,6 +34,16 @@ data class FacultyEntity(
     val experience: Int = 0,
     val maxWeeklyHours: Int = 24,
     val photoUri: String = "",
+    val employeeId: String = "",
+    val facultyCode: String = "",
+    val gender: String = "",
+    val officeRoom: String = "",
+    val preferredDays: String = "",
+    val unavailableDays: String = "",
+    val preferredTimeSlots: String = "",
+    val labEligible: Boolean = false,
+    val status: String = "Active",
+    val notes: String = "",
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

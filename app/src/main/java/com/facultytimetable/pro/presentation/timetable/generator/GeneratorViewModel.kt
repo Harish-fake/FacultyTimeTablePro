@@ -66,12 +66,8 @@ class GeneratorViewModel @Inject constructor(
             val timeSlots = timeSlotRepository.getActiveTimeSlots().first()
 
             _state.value = _state.value.copy(
-                sections = sections,
-                subjects = subjects,
-                faculty = faculty,
-                rooms = rooms,
-                timeSlots = timeSlots,
-                isLoading = false
+                sections = sections, subjects = subjects, faculty = faculty,
+                rooms = rooms, timeSlots = timeSlots, isLoading = false
             )
         }
     }
@@ -86,37 +82,23 @@ class GeneratorViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isGenerating = true, result = null, conflicts = emptyList(), error = null)
 
-            // Clear existing entries before generating
-            timetableRepository.deleteAll()
+            val existingEntries = timetableRepository.getAllEntries().first()
+            val lockedEntries = existingEntries.filter { it.isLocked }
 
-            // Build teaching assignments with round-robin faculty distribution
             val assignments = mutableListOf<TeachingAssignment>()
             val facultyByDept = s.faculty.groupBy { it.departmentId }
-
-            // Match sections to subjects by department prefix in section name
-            // e.g. "CSE 3A" gets CSE subjects, "ECE 3A" gets ECE subjects
             val deptCodes = s.subjects.map { it.code.take(2) }.distinct()
 
             for (section in s.sections) {
                 val sectionDept = deptCodes.firstOrNull { section.name.startsWith(it, ignoreCase = true) }
                 for (subject in s.subjects) {
-                    // Skip subject if section doesn't belong to its department (by code prefix match)
                     if (sectionDept != null && !subject.code.startsWith(sectionDept, ignoreCase = true)) continue
-
                     val deptFaculty = facultyByDept[subject.departmentId] ?: s.faculty
                     if (deptFaculty.isEmpty()) continue
-
                     val deptFacultyIds = deptFaculty.map { it.id }.toSet()
                     val existingForDept = assignments.count { it.faculty.id in deptFacultyIds }
                     val facultyForSubject = deptFaculty[existingForDept % deptFaculty.size]
-
-                    assignments.add(
-                        TeachingAssignment(
-                            subject = subject,
-                            section = section,
-                            faculty = facultyForSubject
-                        )
-                    )
+                    assignments.add(TeachingAssignment(subject = subject, section = section, faculty = facultyForSubject))
                 }
             }
 
@@ -126,28 +108,24 @@ class GeneratorViewModel @Inject constructor(
                     timeSlots = s.timeSlots,
                     rooms = s.rooms,
                     facultyList = s.faculty,
-                    onProgress = { progress ->
-                        _state.value = _state.value.copy(progress = progress)
-                    }
+                    existingEntries = existingEntries,
+                    onProgress = { progress -> _state.value = _state.value.copy(progress = progress) }
                 )
             }
 
-            if (result.success && result.entries.isNotEmpty()) {
-                timetableRepository.insertAll(result.entries)
-
-                _state.value = _state.value.copy(
-                    isGenerating = false,
-                    isSuccess = true,
-                    result = "Successfully generated ${result.entries.size} timetable entries"
-                )
-            } else {
-                _state.value = _state.value.copy(
-                    isGenerating = false,
-                    isSuccess = false,
-                    result = "Generation completed with ${result.conflicts.size} conflict(s)",
-                    conflicts = result.conflicts
-                )
+            if (result.entries.isNotEmpty()) {
+                val newEntries = result.entries + lockedEntries
+                timetableRepository.deleteAll()
+                timetableRepository.insertAll(newEntries)
             }
+
+            _state.value = _state.value.copy(
+                isGenerating = false,
+                isSuccess = result.success,
+                result = if (result.success) "Successfully generated ${result.entries.size} timetable entries"
+                    else "Generated ${result.entries.size} entries with ${result.conflicts.size} conflict(s)",
+                conflicts = result.conflicts
+            )
         }
     }
 

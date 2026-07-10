@@ -15,6 +15,7 @@ data class TimeSlotEntity(
     val periodNumber: Int,
     val startTime: String,
     val endTime: String,
+    val periodName: String = "",
     val type: SlotType = SlotType.REGULAR,
     val isActive: Boolean = true
 )

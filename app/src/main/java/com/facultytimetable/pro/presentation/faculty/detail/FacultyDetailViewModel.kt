@@ -13,7 +13,8 @@ import javax.inject.Inject
 
 data class FacultyDetailState(
     val faculty: FacultyEntity? = null,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val isDeleted: Boolean = false
 )
 
 @HiltViewModel
@@ -35,6 +36,13 @@ class FacultyDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val faculty = facultyRepository.getFacultyById(facultyId)
             _state.value = FacultyDetailState(faculty = faculty, isLoading = false)
+        }
+    }
+
+    fun deleteFaculty() {
+        viewModelScope.launch {
+            _state.value.faculty?.let { facultyRepository.delete(it) }
+            _state.value = _state.value.copy(isDeleted = true)
         }
     }
 }

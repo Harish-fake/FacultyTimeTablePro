@@ -16,8 +16,31 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
+data class HolidayUi(
+    val id: Long = 0,
+    val name: String,
+    val date: Long,
+    val description: String = "",
+    val isRecurring: Boolean = false
+) {
+    fun toEntity(): HolidayEntity = HolidayEntity(
+        id = id,
+        name = name,
+        date = date,
+        isRecurring = isRecurring
+    )
+}
+
+fun HolidayEntity.toUi(description: String = "") = HolidayUi(
+    id = id,
+    name = name,
+    date = date,
+    description = description,
+    isRecurring = isRecurring
+)
+
 data class HolidayListState(
-    val holidays: List<HolidayEntity> = emptyList(),
+    val holidays: List<HolidayUi> = emptyList(),
     val searchQuery: String = "",
     val isLoading: Boolean = true
 )
@@ -37,7 +60,7 @@ class HolidayListViewModel @Inject constructor(
         val filtered = if (query.isBlank()) holidays
         else holidays.filter { it.name.contains(query, ignoreCase = true) }
         HolidayListState(
-            holidays = filtered,
+            holidays = filtered.map { it.toUi() },
             searchQuery = query,
             isLoading = false
         )
@@ -55,12 +78,16 @@ class HolidayListViewModel @Inject constructor(
         }
     }
 
-    fun updateHoliday(holiday: HolidayEntity) {
-        viewModelScope.launch { holidayDao.update(holiday) }
+    fun updateHoliday(holiday: HolidayUi) {
+        viewModelScope.launch {
+            holidayDao.update(holiday.toEntity())
+        }
     }
 
-    fun deleteHoliday(holiday: HolidayEntity) {
-        viewModelScope.launch { holidayDao.delete(holiday) }
+    fun deleteHoliday(holiday: HolidayUi) {
+        viewModelScope.launch {
+            holidayDao.deleteById(holiday.id)
+        }
     }
 
     fun formatDate(epoch: Long): String = dateFormat.format(Date(epoch))

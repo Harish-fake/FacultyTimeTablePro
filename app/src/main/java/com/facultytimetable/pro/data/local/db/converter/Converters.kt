@@ -9,32 +9,26 @@ import com.facultytimetable.pro.data.local.db.entity.WeekType
 class Converters {
 
     @TypeConverter
-    fun fromSubjectType(value: SubjectType): String = value.name
+    fun fromSubjectType(type: SubjectType): String = type.name
 
     @TypeConverter
     fun toSubjectType(value: String): SubjectType = SubjectType.valueOf(value)
 
     @TypeConverter
-    fun fromRoomType(value: RoomType): String = value.name
+    fun fromRoomType(type: RoomType): String = type.name
 
     @TypeConverter
     fun toRoomType(value: String): RoomType = RoomType.valueOf(value)
 
     @TypeConverter
-    fun fromSlotType(value: SlotType): String = value.name
+    fun fromSlotType(type: SlotType): String = type.name
 
     @TypeConverter
     fun toSlotType(value: String): SlotType = SlotType.valueOf(value)
 
     @TypeConverter
-    fun fromWeekType(value: WeekType): String = value.name
+    fun fromWeekType(type: WeekType): String = type.name
 
     @TypeConverter
     fun toWeekType(value: String): WeekType = WeekType.valueOf(value)
-
-    @TypeConverter
-    fun fromBooleanList(value: List<Boolean>): String = value.joinToString(",")
-
-    @TypeConverter
-    fun toBooleanList(value: String): List<Boolean> = value.split(",").map { it.toBoolean() }
 }

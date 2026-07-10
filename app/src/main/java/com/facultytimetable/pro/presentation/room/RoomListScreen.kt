@@ -1,9 +1,6 @@
 package com.facultytimetable.pro.presentation.room
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,26 +13,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TheaterComedy
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.AcUnit
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Videocam
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,7 +54,9 @@ import com.facultytimetable.pro.data.local.db.entity.RoomType
 import com.facultytimetable.pro.presentation.common.components.AppFAB
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.ConfirmDialog
+import com.facultytimetable.pro.presentation.common.components.EmptyState
 import com.facultytimetable.pro.presentation.common.components.LoadingState
+import com.facultytimetable.pro.presentation.common.components.SearchBar
 import com.facultytimetable.pro.presentation.navigation.Routes
 import com.facultytimetable.pro.presentation.theme.SubjectLab
 
@@ -71,85 +68,71 @@ fun RoomListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<RoomEntity?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
-
-    val filteredRooms = remember(state.rooms, searchQuery) {
-        if (searchQuery.isBlank()) state.rooms
-        else {
-            val q = searchQuery.lowercase()
-            state.rooms.filter { room ->
-                room.name.lowercase().contains(q) ||
-                room.building.lowercase().contains(q) ||
-                room.type.name.lowercase().contains(q)
-            }
-        }
-    }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(title = "Rooms & Labs", onBackClick = { navController.popBackStack() })
+        AppTopBar(
+            title = "Rooms & Labs",
+            actions = {
+                if (state.rooms.isNotEmpty()) {
+                    Text(
+                        text = "${state.rooms.size}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+                }
+            }
+        )
+
+        SearchBar(
+            query = state.searchQuery,
+            onQueryChange = viewModel::onSearchQueryChange,
+            placeholder = "Search by name, building, or type...",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        LazyRow(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item {
+                FilterChip(
+                    selected = state.selectedType == null,
+                    onClick = { viewModel.onTypeFilterChange(null) },
+                    label = { Text("All") }
+                )
+            }
+            items(RoomType.entries) { type ->
+                FilterChip(
+                    selected = state.selectedType == type,
+                    onClick = { viewModel.onTypeFilterChange(type) },
+                    label = { Text(type.name.replace("_", " ")) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.size(8.dp))
 
         if (state.isLoading) {
             LoadingState()
-        } else {
-            androidx.compose.material3.OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search by name, building, or type...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear")
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium
+        } else if (state.rooms.isEmpty()) {
+            EmptyState(
+                title = if (state.searchQuery.isNotBlank() || state.selectedType != null) "No Results Found" else "No Rooms",
+                message = if (state.searchQuery.isNotBlank()) "Try adjusting your search terms"
+                else "Add your first room or lab to get started"
             )
-
-            if (filteredRooms.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.MeetingRoom,
-                            contentDescription = null,
-                            modifier = Modifier.size(72.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
-                        Spacer(modifier = Modifier.size(16.dp))
-                        Text(
-                            "No Rooms Found",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text(
-                            if (searchQuery.isNotBlank()) "Try adjusting your search"
-                            else "Add your first room or lab to get started",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    items(filteredRooms, key = { it.id }) { room ->
-                        RoomCard(
-                            room = room,
-                            onEdit = { navController.navigate(Routes.roomForm(room.id)) },
-                            onDelete = { showDeleteDialog = room }
-                        )
-                    }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                items(state.rooms, key = { it.id }) { room ->
+                    RoomCard(
+                        room = room,
+                        onEdit = { navController.navigate(Routes.roomForm(room.id)) },
+                        onDelete = { showDeleteDialog = room }
+                    )
                 }
             }
         }
@@ -175,152 +158,88 @@ private fun roomTypeIcon(type: RoomType): ImageVector = when (type) {
     RoomType.SEMINAR_HALL -> Icons.Default.MeetingRoom
     RoomType.AUDITORIUM -> Icons.Default.TheaterComedy
     RoomType.LIBRARY -> Icons.Default.LocalLibrary
+    RoomType.LECTURE_HALL -> Icons.Default.MeetingRoom
+    RoomType.SMART_CLASSROOM -> Icons.Default.MeetingRoom
 }
 
-@Composable
 private fun roomTypeColor(type: RoomType) = when (type) {
     RoomType.CLASSROOM -> MaterialTheme.colorScheme.primary
     RoomType.LAB -> SubjectLab
     RoomType.SEMINAR_HALL -> MaterialTheme.colorScheme.tertiary
     RoomType.AUDITORIUM -> MaterialTheme.colorScheme.error
     RoomType.LIBRARY -> MaterialTheme.colorScheme.secondary
+    RoomType.LECTURE_HALL -> MaterialTheme.colorScheme.tertiary
+    RoomType.SMART_CLASSROOM -> MaterialTheme.colorScheme.primary
 }
 
 @Composable
 private fun RoomCard(room: RoomEntity, onEdit: () -> Unit, onDelete: () -> Unit) {
-    var elevated by remember { mutableStateOf(false) }
-    val elevation by animateDpAsState(
-        targetValue = if (elevated) 6.dp else 1.dp,
-        animationSpec = tween(150)
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(),
+    androidx.compose.material3.Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
-        onClick = { elevated = !elevated }
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    roomTypeIcon(room.type),
-                    contentDescription = null,
-                    modifier = Modifier.size(44.dp),
-                    tint = roomTypeColor(room.type)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                roomTypeIcon(room.type),
+                contentDescription = null,
+                modifier = Modifier.size(44.dp),
+                tint = roomTypeColor(room.type)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    room.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
+                Spacer(modifier = Modifier.size(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        room.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        room.type.name.replace("_", " "),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = roomTypeColor(room.type)
                     )
-                    Spacer(modifier = Modifier.size(2.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            room.type.name.replace("_", " "),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = roomTypeColor(room.type)
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        CapacityBadge(capacity = room.capacity)
-                    }
-                }
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-                }
-            }
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (room.building.isNotBlank()) {
-                    InfoChip(icon = Icons.Default.Business, text = room.building)
-                }
-                if (room.floor.isNotBlank()) {
-                    InfoChip(icon = null, text = "Floor ${room.floor}")
-                }
-            }
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                EquipmentChip(
-                    icon = if (room.hasProjector) Icons.Default.Videocam else Icons.Outlined.Videocam,
-                    label = "Projector",
-                    active = room.hasProjector
-                )
-                EquipmentChip(
-                    icon = if (room.hasAC) Icons.Default.AcUnit else Icons.Outlined.AcUnit,
-                    label = "AC",
-                    active = room.hasAC
-                )
-                if (!room.isActive) {
-                    EquipmentChip(
-                        icon = Icons.Outlined.CheckCircle,
-                        label = "Inactive",
-                        active = false
-                    )
-                }
-            }
-
-            AnimatedVisibility(visible = elevated) {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    Spacer(modifier = Modifier.size(8.dp))
                     Text(
-                        "Created: ${java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()).format(java.util.Date(room.createdAt))}",
+                        "$room.capacity seats",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (room.building.isNotBlank()) {
+                    Text(
+                        room.building,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    EquipmentChip(
+                        icon = if (room.hasProjector) Icons.Default.Videocam else Icons.Outlined.Videocam,
+                        label = "Projector",
+                        active = room.hasProjector
+                    )
+                    EquipmentChip(
+                        icon = if (room.hasAC) Icons.Default.AcUnit else Icons.Outlined.AcUnit,
+                        label = "AC",
+                        active = room.hasAC
+                    )
+                }
+            }
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
             }
         }
-    }
-}
-
-@Composable
-private fun CapacityBadge(capacity: Int) {
-    androidx.compose.material3.Surface(
-        shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.secondaryContainer
-    ) {
-        Text(
-            "$capacity seats",
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer
-        )
-    }
-}
-
-@Composable
-private fun InfoChip(icon: ImageVector?, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (icon != null) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.size(4.dp))
-        }
-        Text(
-            text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

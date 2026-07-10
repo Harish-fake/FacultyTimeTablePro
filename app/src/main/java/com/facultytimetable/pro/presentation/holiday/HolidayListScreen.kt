@@ -2,7 +2,6 @@ package com.facultytimetable.pro.presentation.holiday
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -48,7 +47,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.facultytimetable.pro.data.local.db.entity.HolidayEntity
 import com.facultytimetable.pro.presentation.common.components.AppBottomSheet
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppFAB
@@ -66,9 +64,9 @@ fun HolidayListScreen(
     viewModel: HolidayListViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    var showDeleteDialog by remember { mutableStateOf<HolidayEntity?>(null) }
+    var showDeleteDialog by remember { mutableStateOf<HolidayUi?>(null) }
     var showFormSheet by remember { mutableStateOf(false) }
-    var editingHoliday by remember { mutableStateOf<HolidayEntity?>(null) }
+    var editingHoliday by remember { mutableStateOf<HolidayUi?>(null) }
 
     Scaffold(
         topBar = {
@@ -164,7 +162,7 @@ fun HolidayListScreen(
 
 @Composable
 private fun HolidayCard(
-    holiday: HolidayEntity,
+    holiday: HolidayUi,
     dateFormatter: (Long) -> String,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -212,6 +210,14 @@ private fun HolidayCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (holiday.description.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = holiday.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             IconButton(onClick = onEdit) {
                 Icon(
@@ -234,12 +240,13 @@ private fun HolidayCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HolidayFormSheet(
-    existingHoliday: HolidayEntity?,
+    existingHoliday: HolidayUi?,
     dateFormatter: (Long) -> String,
     onSave: (name: String, date: Long, isRecurring: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf(existingHoliday?.name ?: "") }
+    var description by remember { mutableStateOf(existingHoliday?.description ?: "") }
     var selectedDate by remember {
         mutableStateOf(existingHoliday?.date ?: System.currentTimeMillis())
     }
@@ -277,6 +284,18 @@ private fun HolidayFormSheet(
                 onValueChange = { name = it },
                 label = { Text("Holiday Name") },
                 placeholder = { Text("e.g., Republic Day") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Description (optional)") },
+                placeholder = { Text("e.g., National holiday") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium

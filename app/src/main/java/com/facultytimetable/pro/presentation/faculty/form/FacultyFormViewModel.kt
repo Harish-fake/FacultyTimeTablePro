@@ -15,15 +15,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 val DESIGNATIONS = listOf(
-    "Professor",
-    "Associate Professor",
-    "Assistant Professor",
-    "Lecturer",
-    "Adjunct Faculty",
-    "Visiting Faculty",
-    "Lab Assistant",
-    "HOD"
+    "Professor", "Associate Professor", "Assistant Professor",
+    "Lecturer", "Adjunct Faculty", "Visiting Faculty",
+    "Lab Assistant", "HOD"
 )
+
+val GENDERS = listOf("Male", "Female", "Other")
+val STATUS_OPTIONS = listOf("Active", "On Leave", "Part-Time", "Contract", "Retired")
 
 data class FacultyFormState(
     val photoUri: String = "",
@@ -34,11 +32,18 @@ data class FacultyFormState(
     val departmentId: Long? = null,
     val qualification: String = "",
     val employeeId: String = "",
+    val facultyCode: String = "",
+    val gender: String = "",
+    val officeRoom: String = "",
+    val preferredDays: String = "",
+    val unavailableDays: String = "",
+    val preferredTimeSlots: String = "",
+    val labEligible: Boolean = false,
+    val status: String = "Active",
     val experience: String = "",
     val maxWeeklyHours: String = "24",
-    val canHandleLab: Boolean = false,
-    val isActive: Boolean = true,
     val notes: String = "",
+    val isActive: Boolean = true,
     val departments: List<DepartmentEntity> = emptyList(),
     val isEditing: Boolean = false,
     val isLoading: Boolean = true,
@@ -59,14 +64,11 @@ class FacultyFormViewModel @Inject constructor(
     private val _state = MutableStateFlow(FacultyFormState())
     val state: StateFlow<FacultyFormState> = _state
 
-    init {
-        loadData()
-    }
+    init { loadData() }
 
     private fun loadData() {
         viewModelScope.launch {
             val departments = departmentRepository.getActiveDepartments().first()
-
             if (facultyId != null) {
                 val faculty = facultyRepository.getFacultyById(facultyId)
                 if (faculty != null) {
@@ -78,8 +80,18 @@ class FacultyFormViewModel @Inject constructor(
                         designation = faculty.designation,
                         departmentId = faculty.departmentId,
                         qualification = faculty.qualification,
+                        employeeId = faculty.employeeId,
+                        facultyCode = faculty.facultyCode,
+                        gender = faculty.gender,
+                        officeRoom = faculty.officeRoom,
+                        preferredDays = faculty.preferredDays,
+                        unavailableDays = faculty.unavailableDays,
+                        preferredTimeSlots = faculty.preferredTimeSlots,
+                        labEligible = faculty.labEligible,
+                        status = faculty.status,
                         experience = faculty.experience.toString(),
                         maxWeeklyHours = faculty.maxWeeklyHours.toString(),
+                        notes = faculty.notes,
                         isActive = faculty.isActive,
                         isEditing = true,
                         isLoading = false,
@@ -88,11 +100,7 @@ class FacultyFormViewModel @Inject constructor(
                     return@launch
                 }
             }
-
-            _state.value = _state.value.copy(
-                isLoading = false,
-                departments = departments
-            )
+            _state.value = _state.value.copy(isLoading = false, departments = departments)
         }
     }
 
@@ -104,31 +112,25 @@ class FacultyFormViewModel @Inject constructor(
     fun onDepartmentSelected(id: Long) { _state.value = _state.value.copy(departmentId = id, error = null) }
     fun onQualificationChange(value: String) { _state.value = _state.value.copy(qualification = value) }
     fun onEmployeeIdChange(value: String) { _state.value = _state.value.copy(employeeId = value) }
+    fun onFacultyCodeChange(value: String) { _state.value = _state.value.copy(facultyCode = value) }
+    fun onGenderChange(value: String) { _state.value = _state.value.copy(gender = value) }
+    fun onOfficeRoomChange(value: String) { _state.value = _state.value.copy(officeRoom = value) }
+    fun onPreferredDaysChange(value: String) { _state.value = _state.value.copy(preferredDays = value) }
+    fun onUnavailableDaysChange(value: String) { _state.value = _state.value.copy(unavailableDays = value) }
+    fun onPreferredTimeSlotsChange(value: String) { _state.value = _state.value.copy(preferredTimeSlots = value) }
+    fun onLabEligibleChange(value: Boolean) { _state.value = _state.value.copy(labEligible = value) }
+    fun onStatusChange(value: String) { _state.value = _state.value.copy(status = value) }
     fun onExperienceChange(value: String) { _state.value = _state.value.copy(experience = value) }
     fun onMaxHoursChange(value: String) { _state.value = _state.value.copy(maxWeeklyHours = value) }
-    fun onCanHandleLabChange(value: Boolean) { _state.value = _state.value.copy(canHandleLab = value) }
-    fun onIsActiveChange(value: Boolean) { _state.value = _state.value.copy(isActive = value) }
     fun onNotesChange(value: String) { _state.value = _state.value.copy(notes = value) }
+    fun onIsActiveChange(value: Boolean) { _state.value = _state.value.copy(isActive = value) }
 
     fun save() {
         val s = _state.value
-
-        if (s.name.isBlank()) {
-            _state.value = s.copy(error = "Full name is required")
-            return
-        }
-        if (s.email.isBlank()) {
-            _state.value = s.copy(error = "Email address is required")
-            return
-        }
-        if (s.designation.isBlank()) {
-            _state.value = s.copy(error = "Designation is required")
-            return
-        }
-        if (s.departmentId == null) {
-            _state.value = s.copy(error = "Department is required")
-            return
-        }
+        if (s.name.isBlank()) { _state.value = s.copy(error = "Full name is required"); return }
+        if (s.email.isBlank()) { _state.value = s.copy(error = "Email address is required"); return }
+        if (s.designation.isBlank()) { _state.value = s.copy(error = "Designation is required"); return }
+        if (s.departmentId == null) { _state.value = s.copy(error = "Department is required"); return }
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isSaving = true)
@@ -141,16 +143,23 @@ class FacultyFormViewModel @Inject constructor(
                     designation = s.designation,
                     departmentId = s.departmentId,
                     qualification = s.qualification.trim(),
+                    employeeId = s.employeeId.trim(),
+                    facultyCode = s.facultyCode.trim(),
+                    gender = s.gender,
+                    officeRoom = s.officeRoom.trim(),
+                    preferredDays = s.preferredDays,
+                    unavailableDays = s.unavailableDays,
+                    preferredTimeSlots = s.preferredTimeSlots,
+                    labEligible = s.labEligible,
+                    status = s.status,
                     experience = s.experience.toIntOrNull() ?: 0,
                     maxWeeklyHours = s.maxWeeklyHours.toIntOrNull() ?: 24,
+                    notes = s.notes.trim(),
                     photoUri = s.photoUri,
                     isActive = s.isActive
                 )
-                if (facultyId != null) {
-                    facultyRepository.update(entity)
-                } else {
-                    facultyRepository.insert(entity)
-                }
+                if (facultyId != null) facultyRepository.update(entity)
+                else facultyRepository.insert(entity)
                 _state.value = _state.value.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isSaving = false, error = e.message ?: "Failed to save faculty")

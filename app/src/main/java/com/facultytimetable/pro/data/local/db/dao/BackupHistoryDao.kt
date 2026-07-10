@@ -9,15 +9,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BackupHistoryDao {
-
     @Query("SELECT * FROM backup_history ORDER BY createdAt DESC")
     fun getAllBackups(): Flow<List<BackupHistoryEntity>>
 
     @Query("SELECT * FROM backup_history WHERE id = :id")
     suspend fun getBackupById(id: Long): BackupHistoryEntity?
-
-    @Query("SELECT * FROM backup_history WHERE isRestorePoint = 1 ORDER BY createdAt DESC")
-    fun getRestorePoints(): Flow<List<BackupHistoryEntity>>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(backup: BackupHistoryEntity): Long

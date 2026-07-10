@@ -13,15 +13,33 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["semesterId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = DepartmentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["departmentId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = AcademicYearEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["academicYearId"],
+            onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["semesterId"])]
+    indices = [
+        Index(value = ["semesterId"]),
+        Index(value = ["departmentId"]),
+        Index(value = ["academicYearId"])
+    ]
 )
 data class SectionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
     val semesterId: Long,
+    val departmentId: Long = 0,
+    val academicYearId: Long = 0,
     val strength: Int = 0,
     val classAdvisor: String = "",
     val roomId: Long = -1,

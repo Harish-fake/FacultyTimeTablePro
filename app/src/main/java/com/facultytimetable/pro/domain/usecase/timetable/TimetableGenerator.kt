@@ -48,36 +48,37 @@ class TimetableGenerator @Inject constructor() {
         timeSlots: List<TimeSlotEntity>,
         rooms: List<RoomEntity>,
         facultyList: List<FacultyEntity>,
+        existingEntries: List<TimetableEntryEntity> = emptyList(),
         onProgress: (GenerationProgress) -> Unit = {}
     ): GenerationResult {
         val regularSlots = timeSlots.filter { it.type == SlotType.REGULAR }.sortedBy { it.periodNumber }
         val lunchSlots = timeSlots.filter { it.type == SlotType.LUNCH }
-        val breakSlots = timeSlots.filter { it.type == SlotType.BREAK }
-
         val workingDays = timeSlots.map { it.dayOfWeek }.distinct().sorted()
 
         if (assignments.isEmpty()) {
-            return GenerationResult(
-                success = false,
-                conflicts = listOf(
-                    ConflictReport(ConflictType.FACULTY_CLASH, "No teaching assignments to schedule", "Add faculty and subjects first")
-                )
-            )
+            return GenerationResult(false, conflicts = listOf(ConflictReport(ConflictType.FACULTY_CLASH, "No teaching assignments to schedule", "Add faculty and subjects first")))
         }
 
         val total = assignments.size
         onProgress(GenerationProgress(0, total, "Starting generation..."))
 
+        val lockedEntries = existingEntries.filter { it.isLocked }
+        val lockedKeys = lockedEntries.map { "${it.facultyId}_${it.dayOfWeek}_${it.timeSlotId}" }.toSet()
+        val lockedRoomKeys = lockedEntries.map { "${it.roomId}_${it.dayOfWeek}_${it.timeSlotId}" }.toSet()
+        val lockedSectionKeys = lockedEntries.map { "${it.sectionId}_${it.dayOfWeek}_${it.timeSlotId}" }.toSet()
+
         val result = mutableListOf<TimetableEntryEntity>()
         val conflicts = mutableListOf<ConflictReport>()
 
-        // Track allocations to avoid clashes
-        val facultySlotUsed = mutableSetOf<String>()  // "facultyId_day_slotId"
-        val roomSlotUsed = mutableSetOf<String>()     // "roomId_day_slotId"
-        val sectionSlotUsed = mutableSetOf<String>()  // "sectionId_day_slotId"
+        val facultySlotUsed = mutableSetOf<String>()
+        val roomSlotUsed = mutableSetOf<String>()
+        val sectionSlotUsed = mutableSetOf<String>()
         val facultyDailyCount = mutableMapOf<Long, MutableMap<Int, Int>>()
 
-        // Sort assignments: theory first (which may need to precede labs), then by hours
+        facultySlotUsed.addAll(lockedKeys)
+        roomSlotUsed.addAll(lockedRoomKeys)
+        sectionSlotUsed.addAll(lockedSectionKeys)
+
         val sortedAssignments = assignments.sortedByDescending { it.subject.hoursPerWeek }
 
         for ((index, assignment) in sortedAssignments.withIndex()) {
@@ -85,14 +86,16 @@ class TimetableGenerator @Inject constructor() {
 
             val hoursNeeded = assignment.subject.hoursPerWeek
             var scheduled = 0
-            var attempts = 0
-            val maxAttempts = 200
-
-            // Try each day
             val daysShuffled = workingDays.shuffled()
+
+            val facultyUnavailableDays = assignment.faculty.unavailableDays
+                .split(",")
+                .mapNotNull { it.trim().toIntOrNull() }
+                .toSet()
 
             for (day in daysShuffled) {
                 if (scheduled >= hoursNeeded) break
+                if (day in facultyUnavailableDays) continue
 
                 val daySlots = regularSlots.filter { it.dayOfWeek == day }
                 if (daySlots.isEmpty()) continue
@@ -101,54 +104,28 @@ class TimetableGenerator @Inject constructor() {
 
                 for (slot in daySlots) {
                     if (scheduled >= hoursNeeded) break
-                    attempts++
-                    if (attempts > maxAttempts) break
-
-                    // Skip lunch slot
                     if (lunchSlot?.periodNumber == slot.periodNumber) continue
 
                     val facKey = "${assignment.faculty.id}_${day}_${slot.id}"
-                    val roomKey = "_${day}_${slot.id}"
                     val secKey = "${assignment.section.id}_${day}_${slot.id}"
 
-                    // Find available room
+                    if (facKey in facultySlotUsed) continue
+                    if (secKey in sectionSlotUsed) continue
+
                     val availableRoom = findAvailableRoom(rooms, assignment.subject, day, slot.id, roomSlotUsed)
+                    if (availableRoom == null) continue
 
-                    if (facKey in facultySlotUsed) {
-                        continue
-                    }
-                    if (secKey in sectionSlotUsed) {
-                        continue
-                    }
-                    if (availableRoom == null) {
-                        continue
-                    }
-
-                    // Check faculty daily limit (max 7 periods)
                     val dailyCount = facultyDailyCount.getOrPut(assignment.faculty.id) { mutableMapOf() }
-                    val currentDayCount = dailyCount.getOrDefault(day, 0)
-                    if (currentDayCount >= 7) continue
+                    if (dailyCount.getOrDefault(day, 0) >= 7) continue
 
-                    // Check faculty weekly max
                     val totalFacultySlots = facultySlotUsed.count { it.startsWith("${assignment.faculty.id}_") }
-                    if (totalFacultySlots >= assignment.faculty.maxWeeklyHours) {
-                        conflicts.add(
-                            ConflictReport(
-                                ConflictType.WORKLOAD_EXCEEDED,
-                                "${assignment.faculty.name} would exceed ${assignment.faculty.maxWeeklyHours} hrs/week",
-                                "Reduce workload or increase max hours",
-                                facultyName = assignment.faculty.name
-                            )
-                        )
-                        continue
-                    }
+                    if (totalFacultySlots >= assignment.faculty.maxWeeklyHours) continue
 
-                    // Allocate
-                    val roomKey_specific = "${availableRoom.id}_${day}_${slot.id}"
+                    val roomKey = "${availableRoom.id}_${day}_${slot.id}"
                     facultySlotUsed.add(facKey)
-                    roomSlotUsed.add(roomKey_specific)
+                    roomSlotUsed.add(roomKey)
                     sectionSlotUsed.add(secKey)
-                    dailyCount[day] = currentDayCount + 1
+                    dailyCount[day] = dailyCount.getOrDefault(day, 0) + 1
 
                     val entry = TimetableEntryEntity(
                         sectionId = assignment.section.id,
@@ -157,7 +134,8 @@ class TimetableGenerator @Inject constructor() {
                         roomId = availableRoom.id,
                         timeSlotId = slot.id,
                         dayOfWeek = day,
-                        weekType = WeekType.ALL
+                        weekType = WeekType.ALL,
+                        isLocked = false
                     )
                     result.add(entry)
                     scheduled++
@@ -165,25 +143,13 @@ class TimetableGenerator @Inject constructor() {
             }
 
             if (scheduled < hoursNeeded) {
-                conflicts.add(
-                    ConflictReport(
-                        ConflictType.FACULTY_CLASH,
-                        "Could only schedule $scheduled/$hoursNeeded hours for ${assignment.subject.name} (${assignment.section.name})",
-                        "Check faculty availability or add more time slots",
-                        facultyName = assignment.faculty.name,
-                        sectionName = assignment.section.name
-                    )
-                )
+                conflicts.add(ConflictReport(ConflictType.FACULTY_CLASH, "Could only schedule $scheduled/$hoursNeeded hours for ${assignment.subject.name} (${assignment.section.name})", "Check faculty availability or add more time slots", facultyName = assignment.faculty.name, sectionName = assignment.section.name))
             }
         }
 
         onProgress(GenerationProgress(total, total, if (conflicts.isEmpty()) "Generation complete!" else "Completed with conflicts"))
 
-        return GenerationResult(
-            success = conflicts.isEmpty(),
-            entries = result,
-            conflicts = conflicts
-        )
+        return GenerationResult(success = conflicts.isEmpty(), entries = result, conflicts = conflicts)
     }
 
     private fun findAvailableRoom(
@@ -194,24 +160,13 @@ class TimetableGenerator @Inject constructor() {
         usedRooms: MutableSet<String>
     ): RoomEntity? {
         val preferredType = if (subject.type == SubjectType.LAB) RoomType.LAB else RoomType.CLASSROOM
-        val candidates = rooms.filter { it.type == preferredType || it.type == RoomType.CLASSROOM }
-        val shuffled = candidates.shuffled()
-
-        for (room in shuffled) {
-            val key = "${room.id}_${day}_${slotId}"
-            if (key !in usedRooms) {
-                return room
-            }
+        val candidates = rooms.filter { it.type == preferredType || it.type == RoomType.CLASSROOM || it.type == RoomType.LECTURE_HALL || it.type == RoomType.SMART_CLASSROOM }
+        for (room in candidates.shuffled()) {
+            if ("${room.id}_${day}_${slotId}" !in usedRooms) return room
         }
-
-        // Fallback: try any room
         for (room in rooms.shuffled()) {
-            val key = "${room.id}_${day}_${slotId}"
-            if (key !in usedRooms) {
-                return room
-            }
+            if ("${room.id}_${day}_${slotId}" !in usedRooms) return room
         }
-
         return null
     }
 }

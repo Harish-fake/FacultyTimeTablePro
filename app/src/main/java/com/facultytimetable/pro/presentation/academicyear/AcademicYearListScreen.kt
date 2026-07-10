@@ -33,10 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
 import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppFAB
@@ -47,49 +44,6 @@ import com.facultytimetable.pro.presentation.common.components.EmptyState
 import com.facultytimetable.pro.presentation.common.components.LoadingState
 import com.facultytimetable.pro.presentation.common.components.SearchBar
 import com.facultytimetable.pro.presentation.navigation.Routes
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import javax.inject.Inject
-
-data class AcademicYearListState(
-    val years: List<AcademicYearEntity> = emptyList(),
-    val searchQuery: String = "",
-    val isLoading: Boolean = true
-)
-
-@HiltViewModel
-class AcademicYearListViewModel @Inject constructor(
-    private val academicYearDao: AcademicYearDao
-) : ViewModel() {
-
-    private val searchQuery = MutableStateFlow("")
-    private val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
-
-    val state: StateFlow<AcademicYearListState> = combine(
-        academicYearDao.getAllAcademicYears(),
-        searchQuery
-    ) { years, query ->
-        val filtered = if (query.isBlank()) years
-        else years.filter { it.name.contains(query, ignoreCase = true) }
-        AcademicYearListState(years = filtered, searchQuery = query, isLoading = false)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AcademicYearListState())
-
-    fun onSearchQueryChange(query: String) { searchQuery.value = query }
-
-    fun deleteYear(year: AcademicYearEntity) {
-        viewModelScope.launch { academicYearDao.delete(year) }
-    }
-
-    fun formatDate(epoch: Long): String = dateFormat.format(Date(epoch))
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,19 +90,28 @@ fun AcademicYearListScreen(
                 contentPadding = PaddingValues(16.dp)
             ) {
                 items(state.years, key = { it.id }) { year ->
-                    AppCard(modifier = Modifier.animateContentSize()) {
+                    AppCard(
+                        modifier = Modifier.animateContentSize(),
+                        onClick = { navController.navigate(Routes.academicYearForm(year.id)) }
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null,
-                                modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(
+                                Icons.Default.CalendarMonth, contentDescription = null,
+                                modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary
+                            )
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(year.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                                Text(
+                                    year.name, style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
                                 Text(
                                     text = "${viewModel.formatDate(year.startDate)} - ${viewModel.formatDate(year.endDate)}",
-                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             if (year.isCurrent) {

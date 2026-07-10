@@ -7,9 +7,12 @@ import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
 import com.facultytimetable.pro.data.local.db.dao.AuditLogDao
 import com.facultytimetable.pro.data.local.db.dao.BackupHistoryDao
 import com.facultytimetable.pro.data.local.db.dao.DepartmentDao
+import com.facultytimetable.pro.data.local.db.dao.FacultyAssignmentDao
 import com.facultytimetable.pro.data.local.db.dao.FacultyDao
 import com.facultytimetable.pro.data.local.db.dao.FacultyLeaveDao
 import com.facultytimetable.pro.data.local.db.dao.HolidayDao
+import com.facultytimetable.pro.data.local.db.dao.LabDao
+import com.facultytimetable.pro.data.local.db.dao.RecycleBinDao
 import com.facultytimetable.pro.data.local.db.dao.RoomDao
 import com.facultytimetable.pro.data.local.db.dao.SectionDao
 import com.facultytimetable.pro.data.local.db.dao.SemesterDao
@@ -18,6 +21,7 @@ import com.facultytimetable.pro.data.local.db.dao.SubstituteFacultyDao
 import com.facultytimetable.pro.data.local.db.dao.TimeSlotDao
 import com.facultytimetable.pro.data.local.db.dao.TimetableEntryDao
 import com.facultytimetable.pro.data.local.db.dao.UserPreferenceDao
+import com.facultytimetable.pro.data.local.db.dao.WorkingDayDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -55,4 +59,8 @@ object DatabaseModule {
     @Provides fun provideUserPreferenceDao(db: AppDatabase): UserPreferenceDao = db.userPreferenceDao()
     @Provides fun provideBackupHistoryDao(db: AppDatabase): BackupHistoryDao = db.backupHistoryDao()
     @Provides fun provideAuditLogDao(db: AppDatabase): AuditLogDao = db.auditLogDao()
+    @Provides fun provideLabDao(db: AppDatabase): LabDao = db.labDao()
+    @Provides fun provideFacultyAssignmentDao(db: AppDatabase): FacultyAssignmentDao = db.facultyAssignmentDao()
+    @Provides fun provideRecycleBinDao(db: AppDatabase): RecycleBinDao = db.recycleBinDao()
+    @Provides fun provideWorkingDayDao(db: AppDatabase): WorkingDayDao = db.workingDayDao()
 }

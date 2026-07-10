@@ -3,9 +3,10 @@ package com.facultytimetable.pro.presentation.leave
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.facultytimetable.pro.data.local.db.dao.FacultyDao
 import com.facultytimetable.pro.data.local.db.dao.FacultyLeaveDao
+import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
 import com.facultytimetable.pro.data.local.db.entity.FacultyLeaveEntity
+import com.facultytimetable.pro.domain.repository.FacultyRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,7 +23,7 @@ data class LeaveWithFaculty(
 
 data class FacultyLeaveState(
     val leaves: List<LeaveWithFaculty> = emptyList(),
-    val faculties: List<com.facultytimetable.pro.data.local.db.entity.FacultyEntity> = emptyList(),
+    val faculties: List<FacultyEntity> = emptyList(),
     val selectedFacultyId: Long? = null,
     val isLoading: Boolean = true
 )
@@ -31,7 +32,7 @@ data class FacultyLeaveState(
 class FacultyLeaveViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val facultyLeaveDao: FacultyLeaveDao,
-    private val facultyDao: FacultyDao
+    private val facultyRepository: FacultyRepository
 ) : ViewModel() {
 
     private val facultyId: Long = savedStateHandle["facultyId"] ?: -1L
@@ -39,7 +40,7 @@ class FacultyLeaveViewModel @Inject constructor(
 
     val state: StateFlow<FacultyLeaveState> = combine(
         facultyLeaveDao.getAllLeaves(),
-        facultyDao.getActiveFaculty(),
+        facultyRepository.getAllFaculty(),
         selectedFacultyId
     ) { allLeaves, faculties, selectedId ->
         val facultyMap = faculties.associate { it.id to it.name }

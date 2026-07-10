@@ -127,7 +127,10 @@ fun FacultyLeaveScreen(
             faculties = state.faculties,
             preSelectedFacultyId = state.selectedFacultyId,
             onDismiss = { showBottomSheet = false },
-            onSave = { leave -> viewModel.insertLeave(leave); showBottomSheet = false }
+            onSave = { leave ->
+                viewModel.insertLeave(leave)
+                showBottomSheet = false
+            }
         )
     }
 }
