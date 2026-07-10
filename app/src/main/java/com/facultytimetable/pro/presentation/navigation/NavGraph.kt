@@ -276,15 +276,8 @@ fun NavGraph() {
                 HolidayListScreen(navController = navController)
             }
 
-            composable(
-                route = Routes.FACULTY_LEAVE,
-                arguments = listOf(navArgument("facultyId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val facultyId = backStackEntry.arguments?.getLong("facultyId") ?: return@composable
-                FacultyLeaveScreen(
-                    facultyId = facultyId,
-                    navController = navController
-                )
+            composable(Routes.FACULTY_LEAVE) {
+                FacultyLeaveScreen(navController = navController)
             }
 
             composable(Routes.TIMETABLE_GENERATOR) {

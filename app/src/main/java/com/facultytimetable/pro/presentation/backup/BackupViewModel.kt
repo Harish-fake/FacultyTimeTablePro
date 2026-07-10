@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
@@ -45,21 +47,19 @@ class BackupViewModel @Inject constructor(
     val state: StateFlow<BackupUiState> = _state.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            combine(
-                backupHistoryDao.getAllBackups(),
-                appPreferences.lastBackupReminder,
-                appPreferences.backupReminderInterval
-            ) { history, lastTime, interval ->
-                _state.update {
-                    it.copy(
-                        backupHistory = history,
-                        lastBackupTime = lastTime,
-                        backupReminderInterval = interval
-                    )
-                }
-            }.collect()
-        }
+        combine(
+            backupHistoryDao.getAllBackups(),
+            appPreferences.lastBackupReminder,
+            appPreferences.backupReminderInterval
+        ) { history, lastTime, interval ->
+            _state.update {
+                it.copy(
+                    backupHistory = history,
+                    lastBackupTime = lastTime,
+                    backupReminderInterval = interval
+                )
+            }
+        }.onEach { }.launchIn(viewModelScope)
     }
 
     fun createBackup(notes: String = "") {

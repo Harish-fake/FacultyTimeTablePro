@@ -22,7 +22,7 @@ object Routes {
     const val TIME_SLOT_CONFIG = "timeslot/config"
     const val HOLIDAY_LIST = "holiday/list"
     const val HOLIDAY_FORM = "holiday/form?holidayId={holidayId}"
-    const val FACULTY_LEAVE = "faculty/leave/{facultyId}"
+    const val FACULTY_LEAVE = "faculty/leave"
     const val FACULTY_LEAVE_FORM = "faculty/leave/form?facultyId={facultyId}&leaveId={leaveId}"
     const val TIMETABLE_GRID = "timetable/grid"
     const val TIMETABLE_DAILY = "timetable/daily/{day}"
@@ -52,7 +52,7 @@ object Routes {
     fun timetableDepartment(id: Long) = "timetable/department/$id"
     fun timetableRoom(id: Long) = "timetable/room/$id"
     fun timetableSection(id: Long) = "timetable/section/$id"
-    fun facultyLeave(id: Long) = "faculty/leave/$id"
+    fun facultyLeave(id: Long) = "faculty/leave"
     fun facultyLeaveForm(facultyId: Long, leaveId: Long? = null) =
         if (leaveId != null) "faculty/leave/form?facultyId=$facultyId&leaveId=$leaveId"
         else "faculty/leave/form?facultyId=$facultyId"
