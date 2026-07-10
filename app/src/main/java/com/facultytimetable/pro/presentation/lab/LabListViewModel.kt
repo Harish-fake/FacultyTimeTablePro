@@ -42,8 +42,8 @@ class LabListViewModel @Inject constructor(
         val filtered = labs.filter { lab ->
             val matchesQuery = query.isBlank() ||
                 lab.name.contains(query, ignoreCase = true) ||
-                lab.building.contains(query, ignoreCase = true) ||
-                lab.roomNumber.contains(query, ignoreCase = true)
+                lab.roomNumber.contains(query, ignoreCase = true) ||
+                deptNames[lab.departmentId]?.contains(query, ignoreCase = true) == true
             val matchesDept = deptId == null || lab.departmentId == deptId
             matchesQuery && matchesDept
         }
@@ -62,5 +62,9 @@ class LabListViewModel @Inject constructor(
 
     fun deleteLab(lab: LabEntity) {
         viewModelScope.launch { labRepository.delete(lab) }
+    }
+
+    fun restoreLab(lab: LabEntity) {
+        viewModelScope.launch { labRepository.insert(lab) }
     }
 }

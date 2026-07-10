@@ -1,8 +1,10 @@
 package com.facultytimetable.pro.presentation.timetable.grid
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,10 +25,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.ContentCopy as CopyIcon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -134,16 +141,26 @@ fun TimetableGridScreen(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Department View") },
-                                onClick = { showMenu = false }
+                                text = { Text("Copy All") },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.copyEntry(state.entries.firstOrNull() ?: return@DropdownMenuItem)
+                                },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Room View") },
-                                onClick = { showMenu = false }
+                                text = { Text("Clear ${dayLabels.getOrElse(state.selectedDay - 1) { "" }}") },
+                                onClick = {
+                                    showMenu = false
+                                    state.selectedSection?.let { viewModel.clearDay(state.selectedDay) }
+                                },
+                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Print") },
-                                onClick = { showMenu = false },
+                                text = { Text("Print / Export PDF") },
+                                onClick = {
+                                    showMenu = false
+                                },
                                 leadingIcon = {
                                     Icon(Icons.Default.Print, contentDescription = null)
                                 }
@@ -208,6 +225,7 @@ fun TimetableGridScreen(
             onSubjectChange = viewModel::updateEditingSubject,
             onFacultyChange = viewModel::updateEditingFaculty,
             onRoomChange = viewModel::updateEditingRoom,
+            onToggleLock = viewModel::toggleLockEntry,
             onSave = {
                 val entry = state.editingEntry
                 if (entry != null && entry.id == 0L) {
@@ -360,12 +378,15 @@ private fun WeeklyGrid(
                                                 w.first().uppercase()
                                             }
                                     } ?: "?"
+                                    val showLock = entry.isLocked
 
                                     GridCell(
                                         label = resolved?.code ?: "SUBJ",
                                         subtitle = initials,
                                         color = color,
-                                        onClick = { onCellClick(day, timeSlot) }
+                                        isLocked = showLock,
+                                        onClick = { onCellClick(day, timeSlot) },
+                                        onLongClick = { onCellClick(day, timeSlot) }
                                     )
                                 } else {
                                     GridCell(
@@ -390,6 +411,7 @@ private fun WeeklyGrid(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RowScope.GridCell(
     label: String,
@@ -397,13 +419,15 @@ private fun RowScope.GridCell(
     subtitle: String = "",
     isSpecial: Boolean = false,
     isEmpty: Boolean = false,
-    onClick: (() -> Unit)? = null
+    isLocked: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
             .weight(1f)
             .padding(2.dp)
-            .height(68.dp)
+            .height(if (isLocked) 72.dp else 68.dp)
             .clip(RoundedCornerShape(6.dp))
             .then(
                 if (isSpecial) Modifier.background(color.copy(alpha = 0.2f))
@@ -411,11 +435,20 @@ private fun RowScope.GridCell(
                 else Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             )
             .then(
-                if (!isEmpty && !isSpecial)
+                if (isLocked)
+                    Modifier.border(2.dp, color, RoundedCornerShape(6.dp))
+                else if (!isEmpty && !isSpecial)
                     Modifier.border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
                 else Modifier
             )
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                if (onClick != null || onLongClick != null)
+                    Modifier.combinedClickable(
+                        onClick = { onClick?.invoke() },
+                        onLongClick = { onLongClick?.invoke() }
+                    )
+                else Modifier
+            )
             .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -423,7 +456,7 @@ private fun RowScope.GridCell(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = if (isLocked) 8.sp else 9.sp),
                     fontWeight = FontWeight.Medium,
                     color = color,
                     maxLines = 2,
@@ -438,6 +471,15 @@ private fun RowScope.GridCell(
                         color = color.copy(alpha = 0.7f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (isLocked) {
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = "Locked",
+                        modifier = Modifier.size(8.dp),
+                        tint = color.copy(alpha = 0.5f)
                     )
                 }
             }
@@ -459,6 +501,7 @@ private fun TimetableEditSheet(
     onSubjectChange: (Long) -> Unit,
     onFacultyChange: (Long) -> Unit,
     onRoomChange: (Long) -> Unit,
+    onToggleLock: () -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -537,6 +580,29 @@ private fun TimetableEditSheet(
                 shape = MaterialTheme.shapes.medium,
                 enabled = false
             )
+
+            if (!isNew) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Lock Entry",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedButton(onClick = onToggleLock) {
+                        Icon(
+                            if (currentEntry.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (currentEntry.isLocked) "Unlock" else "Lock")
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 

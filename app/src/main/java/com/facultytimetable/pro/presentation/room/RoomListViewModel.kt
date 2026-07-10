@@ -37,8 +37,8 @@ class RoomListViewModel @Inject constructor(
         val filtered = rooms.filter { room ->
             val matchesQuery = query.isBlank() ||
                 room.name.contains(query, ignoreCase = true) ||
-                room.building.contains(query, ignoreCase = true) ||
-                room.type.name.contains(query, ignoreCase = true)
+                room.roomNumber.contains(query, ignoreCase = true) ||
+                room.building.contains(query, ignoreCase = true)
             val matchesType = type == null || room.type == type
             matchesQuery && matchesType
         }
@@ -60,5 +60,9 @@ class RoomListViewModel @Inject constructor(
 
     fun deleteRoom(room: RoomEntity) {
         viewModelScope.launch { roomRepository.delete(room) }
+    }
+
+    fun restoreRoom(room: RoomEntity) {
+        viewModelScope.launch { roomRepository.insert(room) }
     }
 }

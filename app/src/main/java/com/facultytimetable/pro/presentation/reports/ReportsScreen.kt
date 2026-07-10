@@ -1,5 +1,11 @@
 package com.facultytimetable.pro.presentation.reports
 
+import android.content.Context
+import android.content.Intent
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
+import android.os.Environment
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +28,7 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Print
@@ -29,6 +36,9 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -253,31 +263,87 @@ private fun ExportActions(
     snackbarHostState: SnackbarHostState
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         FilledTonalButton(
             onClick = {
-                scope.launch { snackbarHostState.showSnackbar("Print ${reportType.title} - Coming soon") }
-            },
-            modifier = Modifier.weight(1f)
-        ) {
-            Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Print", style = MaterialTheme.typography.labelLarge)
-        }
-        FilledTonalButton(
-            onClick = {
-                scope.launch { snackbarHostState.showSnackbar("Share ${reportType.title} - Coming soon") }
+                scope.launch {
+                    try {
+                        val file = exportReportAsCsv(context, reportType)
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file
+                        )
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/csv"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share ${reportType.title}"))
+                    } catch (e: Exception) {
+                        snackbarHostState.showSnackbar("Error: ${e.message}")
+                    }
+                }
             },
             modifier = Modifier.weight(1f)
         ) {
             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Share", style = MaterialTheme.typography.labelLarge)
+            Text("CSV", style = MaterialTheme.typography.labelLarge)
+        }
+        FilledTonalButton(
+            onClick = {
+                scope.launch {
+                    try {
+                        val file = exportReportAsCsv(context, reportType)
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file
+                        )
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, "text/csv")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(intent)
+                        snackbarHostState.showSnackbar("Exported ${reportType.title}")
+                    } catch (e: Exception) {
+                        snackbarHostState.showSnackbar("Error: ${e.message}")
+                    }
+                }
+            },
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Export", style = MaterialTheme.typography.labelLarge)
         }
     }
+}
+
+private fun exportReportAsCsv(context: Context, reportType: ReportType): java.io.File {
+    val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        ?: context.filesDir
+    if (!downloadsDir.exists()) downloadsDir.mkdirs()
+    val file = java.io.File(downloadsDir, "${reportType.title.replace(" ", "_")}_${System.currentTimeMillis()}.csv")
+    file.bufferedWriter().use { out ->
+        out.write("${reportType.title} Report\n")
+        out.write("Generated: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}\n\n")
+        when (reportType) {
+            ReportType.FACULTY_WORKLOAD -> out.write("Faculty,Department,Max Hours,Assigned Hours,Utilization %\n")
+            ReportType.DEPARTMENT_SUMMARY -> out.write("Department,Code,Head,Faculty Count,Subject Count\n")
+            ReportType.SUBJECT_ALLOCATION -> out.write("Department,Total Subjects,Theory,Lab,Project,Seminar\n")
+            ReportType.ROOM_UTILIZATION, ReportType.LAB_UTILIZATION -> out.write("Room,Total Slots,Used Slots,Utilization %\n")
+            ReportType.FREE_PERIODS -> out.write("Day,Period,Start,End\n")
+            ReportType.MISSING_HOURS -> out.write("Subject,Code,Department,Required,Allocated,Missing\n")
+            ReportType.CONFLICTS -> out.write("Type,Message,Suggestion\n")
+        }
+    }
+    return file
 }
 
 @Composable

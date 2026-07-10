@@ -16,17 +16,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -35,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -44,6 +47,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,15 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.facultytimetable.pro.data.local.db.entity.DepartmentEntity
-import com.facultytimetable.pro.presentation.common.components.AppBottomSheet
-import com.facultytimetable.pro.presentation.common.components.AppCard
-import com.facultytimetable.pro.presentation.common.components.AppFAB
-import com.facultytimetable.pro.presentation.common.components.AppTopBar
-import com.facultytimetable.pro.presentation.common.components.ConfirmDialog
-import com.facultytimetable.pro.presentation.common.components.EmptyState
-import com.facultytimetable.pro.presentation.common.components.LoadingState
-import com.facultytimetable.pro.presentation.common.components.SearchBar
+import com.facultytimetable.pro.presentation.common.components.*
 import com.facultytimetable.pro.presentation.navigation.Routes
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +70,9 @@ fun DepartmentListScreen(
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<DepartmentEntity?>(null) }
     var showFilterSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -90,8 +91,13 @@ fun DepartmentListScreen(
             )
         },
         floatingActionButton = {
-            AppFAB(onClick = { navController.navigate(Routes.departmentForm()) })
-        }
+            AppFAB(
+                onClick = { navController.navigate(Routes.departmentForm()) },
+                extended = state.departments.isNotEmpty(),
+                scrollState = listState
+            )
+        },
+        snackbarHost = { UndoSnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             SearchBar(
@@ -113,18 +119,28 @@ fun DepartmentListScreen(
                         .fillMaxSize()
                         .weight(1f)
                 ) {
-                    EmptyState(
-                        title = if (state.searchQuery.isNotBlank()) "No Results Found"
-                                else "No Departments Yet",
-                        message = if (state.searchQuery.isNotBlank())
-                                    "No departments match \"${state.searchQuery}\""
-                                else "Add your first department to organize faculty and subjects",
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    if (state.searchQuery.isNotBlank()) {
+                        ProfessionalEmptyState(
+                            icon = Icons.Default.SearchOff,
+                            title = "No Results Found",
+                            description = "No departments match \"${state.searchQuery}\"",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        ProfessionalEmptyState(
+                            icon = Icons.Default.School,
+                            title = "No Departments Yet",
+                            description = "Add your first department to organize faculty and subjects",
+                            primaryButtonText = "Add Department",
+                            onPrimaryButtonClick = { navController.navigate(Routes.departmentForm()) },
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(80.dp))
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -152,6 +168,12 @@ fun DepartmentListScreen(
             onConfirm = {
                 viewModel.deleteDepartment(dept)
                 showDeleteDialog = null
+                scope.launch {
+                    snackbarHostState.showUndoSnackbar(
+                        message = "${dept.name} deleted",
+                        onUndo = { viewModel.restoreDepartment(dept) }
+                    )
+                }
             },
             onDismiss = { showDeleteDialog = null },
             isDestructive = true
@@ -207,7 +229,7 @@ private fun DepartmentCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -273,12 +295,19 @@ private fun DepartmentCard(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 IconButton(onClick = onClick) {
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = "Edit",
                         tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
             }

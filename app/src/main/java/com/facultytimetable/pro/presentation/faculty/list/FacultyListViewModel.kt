@@ -2,6 +2,7 @@ package com.facultytimetable.pro.presentation.faculty.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.facultytimetable.pro.data.local.db.entity.AuditLogEntity
 import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
 import com.facultytimetable.pro.domain.repository.DepartmentRepository
 import com.facultytimetable.pro.domain.repository.FacultyRepository
@@ -59,6 +60,12 @@ class FacultyListViewModel @Inject constructor(
     fun deleteFaculty(faculty: FacultyEntity) {
         viewModelScope.launch {
             facultyRepository.delete(faculty)
+        }
+    }
+
+    fun restoreFaculty(faculty: FacultyEntity) {
+        viewModelScope.launch {
+            facultyRepository.insert(faculty)
         }
     }
 }

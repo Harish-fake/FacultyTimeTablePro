@@ -16,22 +16,27 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WorkHistory
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,10 +51,13 @@ import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppFAB
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.ConfirmDialog
-import com.facultytimetable.pro.presentation.common.components.EmptyState
 import com.facultytimetable.pro.presentation.common.components.LoadingState
+import com.facultytimetable.pro.presentation.common.components.ProfessionalEmptyState
 import com.facultytimetable.pro.presentation.common.components.SearchBar
+import com.facultytimetable.pro.presentation.common.components.UndoSnackbarHost
+import com.facultytimetable.pro.presentation.common.components.showUndoSnackbar
 import com.facultytimetable.pro.presentation.navigation.Routes
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,56 +67,72 @@ fun FacultyListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<FacultyEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(
-            title = "Faculty",
-            actions = {
-                if (state.faculty.isNotEmpty()) {
-                    Text(
-                        text = "${state.faculty.size}",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 16.dp)
-                    )
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                title = "Faculty",
+                actions = {
+                    if (state.faculty.isNotEmpty()) {
+                        Text(
+                            text = "${state.faculty.size}",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = 16.dp)
+                        )
+                    }
                 }
-            }
-        )
-
-        SearchBar(
-            query = state.searchQuery,
-            onQueryChange = viewModel::onSearchQueryChange,
-            placeholder = "Search by name, email, designation, department...",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-
-        if (state.isLoading) {
-            LoadingState()
-        } else if (state.faculty.isEmpty()) {
-            EmptyState(
-                title = if (state.searchQuery.isNotBlank()) "No Results Found" else "No Faculty Yet",
-                message = if (state.searchQuery.isNotBlank()) "Try adjusting your search terms"
-                else "Tap the + button below to add your first faculty member"
             )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(state.faculty, key = { it.id }) { faculty ->
-                    FacultyCard(
-                        faculty = faculty,
-                        departmentName = state.departmentNames[faculty.departmentId],
-                        onClick = { navController.navigate(Routes.facultyDetail(faculty.id)) },
-                        onEdit = { navController.navigate(Routes.facultyForm(faculty.id)) },
-                        onDelete = { showDeleteDialog = faculty }
-                    )
+        },
+        floatingActionButton = {
+            AppFAB(
+                onClick = { navController.navigate(Routes.facultyForm()) },
+                extended = state.faculty.isNotEmpty(),
+                scrollState = listState
+            )
+        },
+        snackbarHost = { UndoSnackbarHost(snackbarHostState) }
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            SearchBar(
+                query = state.searchQuery,
+                onQueryChange = viewModel::onSearchQueryChange,
+                placeholder = "Search by name, email, designation, department...",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            if (state.isLoading) {
+                LoadingState()
+            } else if (state.faculty.isEmpty()) {
+                ProfessionalEmptyState(
+                    icon = Icons.Default.Person,
+                    title = if (state.searchQuery.isNotBlank()) "No Results Found" else "No Faculty Yet",
+                    description = if (state.searchQuery.isNotBlank()) "Try adjusting your search terms" else "Add your first faculty member to get started with timetable management.",
+                    primaryButtonText = if (state.searchQuery.isBlank()) "Add Faculty" else null,
+                    onPrimaryButtonClick = if (state.searchQuery.isBlank()) {{ navController.navigate(Routes.facultyForm()) }} else null
+                )
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    items(state.faculty, key = { it.id }) { faculty ->
+                        FacultyCard(
+                            faculty = faculty,
+                            departmentName = state.departmentNames[faculty.departmentId],
+                            onClick = { navController.navigate(Routes.facultyDetail(faculty.id)) },
+                            onEdit = { navController.navigate(Routes.facultyForm(faculty.id)) },
+                            onDelete = { showDeleteDialog = faculty }
+                        )
+                    }
                 }
             }
         }
-
-        AppFAB(onClick = { navController.navigate(Routes.facultyForm()) })
     }
 
     showDeleteDialog?.let { faculty ->
@@ -117,8 +141,15 @@ fun FacultyListScreen(
             message = "Are you sure you want to delete ${faculty.name}? This action cannot be undone.",
             confirmText = "Delete",
             onConfirm = {
+                val name = faculty.name
                 viewModel.deleteFaculty(faculty)
                 showDeleteDialog = null
+                scope.launch {
+                    snackbarHostState.showUndoSnackbar(
+                        message = "$name deleted",
+                        onUndo = { viewModel.restoreFaculty(faculty) }
+                    )
+                }
             },
             onDismiss = { showDeleteDialog = null },
             isDestructive = true
@@ -215,7 +246,7 @@ private fun FacultyCard(
                         .fillMaxWidth()
                         .height(4.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
 

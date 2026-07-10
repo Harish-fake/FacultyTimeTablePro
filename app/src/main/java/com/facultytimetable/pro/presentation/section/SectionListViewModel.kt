@@ -104,4 +104,8 @@ class SectionListViewModel @Inject constructor(
     fun deleteSection(section: SectionEntity) {
         viewModelScope.launch { sectionRepository.delete(section) }
     }
+
+    fun restoreSection(section: SectionEntity) {
+        viewModelScope.launch { sectionRepository.insert(section) }
+    }
 }

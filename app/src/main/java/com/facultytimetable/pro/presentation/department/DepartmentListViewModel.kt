@@ -73,4 +73,8 @@ class DepartmentListViewModel @Inject constructor(
     fun deleteDepartment(department: DepartmentEntity) {
         viewModelScope.launch { departmentRepository.delete(department) }
     }
+
+    fun restoreDepartment(department: DepartmentEntity) {
+        viewModelScope.launch { departmentRepository.insert(department) }
+    }
 }

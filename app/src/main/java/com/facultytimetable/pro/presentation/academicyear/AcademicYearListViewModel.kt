@@ -45,5 +45,9 @@ class AcademicYearListViewModel @Inject constructor(
         viewModelScope.launch { academicYearDao.delete(year) }
     }
 
+    fun restoreAcademicYear(year: AcademicYearEntity) {
+        viewModelScope.launch { academicYearDao.insert(year) }
+    }
+
     fun formatDate(epoch: Long): String = dateFormat.format(Date(epoch))
 }

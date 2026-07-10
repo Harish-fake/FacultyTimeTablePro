@@ -59,4 +59,10 @@ class SubjectListViewModel @Inject constructor(
             subjectRepository.delete(subject)
         }
     }
+
+    fun restoreSubject(subject: SubjectEntity) {
+        viewModelScope.launch {
+            subjectRepository.insert(subject)
+        }
+    }
 }

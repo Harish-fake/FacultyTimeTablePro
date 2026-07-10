@@ -56,4 +56,8 @@ class SemesterListViewModel @Inject constructor(
     fun deleteSemester(semester: SemesterEntity) {
         viewModelScope.launch { semesterDao.delete(semester) }
     }
+
+    fun restoreSemester(semester: SemesterEntity) {
+        viewModelScope.launch { semesterDao.insert(semester) }
+    }
 }

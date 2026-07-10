@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.School
@@ -27,6 +29,10 @@ import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,10 +54,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.facultytimetable.pro.data.model.TimetableWithDetails
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppFAB
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.LoadingState
+import com.facultytimetable.pro.presentation.common.components.ProfessionalEmptyState
 import com.facultytimetable.pro.presentation.common.components.StatsCard
 import com.facultytimetable.pro.presentation.navigation.Routes
 import java.text.SimpleDateFormat
@@ -81,9 +89,19 @@ fun DashboardScreen(
             EmptyDashboardContent(navController = navController)
         } else {
             Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
+                modifier = Modifier.fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = state.welcomeMessage,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatsCard("Dept", "${state.departmentCount}", icon = { Icon(Icons.Default.School, null, tint = MaterialTheme.colorScheme.primary) }, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f), onClick = { navController.navigate(Routes.DEPARTMENT_LIST) })
@@ -99,10 +117,36 @@ fun DashboardScreen(
                     StatsCard("Labs", "${state.labCount}", icon = { Icon(Icons.Default.Science, null, tint = MaterialTheme.colorScheme.secondary) }, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f), onClick = { navController.navigate(Routes.LAB_LIST) })
                     StatsCard("Sections", "${state.sectionCount}", icon = { Icon(Icons.Default.ViewModule, null, tint = MaterialTheme.colorScheme.tertiary) }, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f), onClick = { navController.navigate(Routes.SECTION_LIST) })
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatsCard("Ac.Years", "${state.academicYearCount}", icon = { Icon(Icons.Default.DateRange, null, tint = MaterialTheme.colorScheme.primary) }, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f), onClick = { navController.navigate(Routes.ACADEMIC_YEAR_LIST) })
-                    StatsCard("Assign.", "${state.assignmentCount}", icon = { Icon(Icons.Default.Assignment, null, tint = MaterialTheme.colorScheme.secondary) }, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f), onClick = { navController.navigate(Routes.FACULTY_ASSIGNMENT) })
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (state.todaysClassCount > 0 || state.conflictCount > 0) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StatsCard("Today's Classes", "${state.todaysClassCount}", icon = { Icon(Icons.Default.Today, null, tint = MaterialTheme.colorScheme.primary) }, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                        StatsCard("Conflicts", "${state.conflictCount}", icon = { Icon(Icons.Default.Warning, null, tint = if (state.conflictCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary) }, color = if (state.conflictCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f), onClick = { navController.navigate(Routes.REPORTS) })
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StatsCard("Faculty Util.", "${(state.facultyUtilization * 100).toInt()}%", icon = { Icon(Icons.Default.BarChart, null, tint = MaterialTheme.colorScheme.secondary) }, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
+                        StatsCard("Room Util.", "${(state.roomUtilization * 100).toInt()}%", icon = { Icon(Icons.Default.BarChart, null, tint = MaterialTheme.colorScheme.tertiary) }, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f))
+                    }
+                }
+
+                if (state.nextClass != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Next Class", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    NextClassCard(state.nextClass!!)
+                }
+
+                if (state.todaysClasses.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Today's Schedule", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    state.todaysClasses.forEach { cls ->
+                        TodayClassCard(cls)
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -151,6 +195,42 @@ fun DashboardScreen(
 }
 
 @Composable
+private fun NextClassCard(next: TimetableWithDetails) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Schedule, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(next.subjectName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text("${next.startTime} - ${next.endTime} | ${next.facultyName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text("${next.roomName} | ${next.sectionName}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodayClassCard(cls: TimetableWithDetails) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(4.dp, 40.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .padding(end = 12.dp)
+            )
+            Column(Modifier.weight(1f)) {
+                Text("${cls.startTime} - ${cls.endTime}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(cls.subjectName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text("${cls.facultyName} | ${cls.roomName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
 private fun QuickActionChip(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(onClick = onClick, modifier = modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -178,27 +258,13 @@ private fun RecentActivityItem(log: com.facultytimetable.pro.data.local.db.entit
 
 @Composable
 private fun EmptyDashboardContent(navController: NavController) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(Icons.Default.RocketLaunch, contentDescription = null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Get Started", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(12.dp))
-        Text("Set up your timetable system by completing the setup wizard.\nFollow the guided steps to add your college data.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        Spacer(modifier = Modifier.height(32.dp))
-        FilledTonalButton(onClick = { navController.navigate(Routes.SETUP_WIZARD) }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-            Text("Open Setup Wizard", style = MaterialTheme.typography.titleSmall)
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        FilledTonalButton(onClick = { navController.navigate(Routes.DEPARTMENT_FORM) }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-            Text("Add First Department", style = MaterialTheme.typography.titleSmall)
-        }
-    }
+    ProfessionalEmptyState(
+        icon = Icons.Default.RocketLaunch,
+        title = "Get Started",
+        description = "Set up your timetable system by completing the setup wizard. Follow the guided steps to add your college data.",
+        primaryButtonText = "Open Setup Wizard",
+        onPrimaryButtonClick = { navController.navigate(Routes.SETUP_WIZARD) },
+        secondaryButtonText = "Add First Department",
+        onSecondaryButtonClick = { navController.navigate(Routes.DEPARTMENT_FORM) }
+    )
 }

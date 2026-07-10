@@ -1,5 +1,6 @@
 package com.facultytimetable.pro.presentation.timetable.grid
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
@@ -33,7 +34,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import androidx.compose.ui.graphics.Color
 
 data class TimetableGridState(
     val sections: List<SectionEntity> = emptyList(),
@@ -52,7 +52,12 @@ data class TimetableGridState(
     val selectedTimeSlot: TimeSlotEntity? = null,
     val validationErrors: List<ConflictReport> = emptyList(),
     val snackbarMessage: String? = null,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val zoomLevel: Float = 1f,
+    val copiedEntry: TimetableEntryEntity? = null,
+    val showContextMenu: Boolean = false,
+    val contextMenuDay: Int = 0,
+    val contextMenuSlot: TimeSlotEntity? = null
 )
 
 data class ResolvedTimetableEntry(
@@ -191,6 +196,13 @@ class TimetableGridViewModel @Inject constructor(
         )
     }
 
+    fun toggleLockEntry() {
+        val entry = _state.value.editingEntry ?: return
+        _state.value = _state.value.copy(
+            editingEntry = entry.copy(isLocked = !entry.isLocked)
+        )
+    }
+
     fun addEntry() {
         val entry = _state.value.editingEntry ?: return
         if (!validateEntry(entry, _state.value.entries)) return
@@ -230,6 +242,72 @@ class TimetableGridViewModel @Inject constructor(
                 validationErrors = emptyList()
             )
         }
+    }
+
+    fun copyEntry(entry: TimetableEntryEntity) {
+        _state.value = _state.value.copy(
+            copiedEntry = entry,
+            snackbarMessage = "${resolveEntry(entry).subjectCode} copied"
+        )
+    }
+
+    fun pasteEntry(day: Int, timeSlotId: Long) {
+        val copied = _state.value.copiedEntry ?: return
+        val section = _state.value.selectedSection ?: return
+        val newEntry = copied.copy(
+            id = 0,
+            sectionId = section.id,
+            dayOfWeek = day,
+            timeSlotId = timeSlotId
+        )
+        if (!validateEntry(newEntry, _state.value.entries)) return
+        viewModelScope.launch {
+            timetableRepository.insert(newEntry)
+            _state.value = _state.value.copy(
+                snackbarMessage = "Entry pasted",
+                copiedEntry = null
+            )
+        }
+    }
+
+    fun clearDay(day: Int) {
+        viewModelScope.launch {
+            val dayEntries = _state.value.entries.filter { it.dayOfWeek == day }
+            dayEntries.forEach { timetableRepository.delete(it) }
+            _state.value = _state.value.copy(
+                snackbarMessage = "Day cleared (${dayEntries.size} entries removed)"
+            )
+        }
+    }
+
+    fun duplicateDay(fromDay: Int, toDay: Int) {
+        viewModelScope.launch {
+            val fromEntries = _state.value.entries.filter { it.dayOfWeek == fromDay }
+            var count = 0
+            for (entry in fromEntries) {
+                val newEntry = entry.copy(
+                    id = 0,
+                    dayOfWeek = toDay,
+                    isLocked = false
+                )
+                if (validateEntry(newEntry, _state.value.entries.filter { it.dayOfWeek == toDay })) {
+                    timetableRepository.insert(newEntry)
+                    count++
+                }
+            }
+            _state.value = _state.value.copy(
+                snackbarMessage = "Duplicated $count entries from ${dayLabel(fromDay)} to ${dayLabel(toDay)}"
+            )
+        }
+    }
+
+    fun setZoomLevel(zoom: Float) {
+        _state.value = _state.value.copy(zoomLevel = zoom.coerceIn(0.5f, 2f))
+    }
+
+    private fun dayLabel(day: Int): String = when (day) {
+        1 -> "Mon"; 2 -> "Tue"; 3 -> "Wed"; 4 -> "Thu"; 5 -> "Fri"
+        6 -> "Sat"; 7 -> "Sun"; else -> "D$day"
     }
 
     fun validateEntry(

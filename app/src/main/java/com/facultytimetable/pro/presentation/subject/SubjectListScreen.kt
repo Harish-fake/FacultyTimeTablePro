@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
@@ -27,12 +28,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,13 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.facultytimetable.pro.data.local.db.entity.SubjectEntity
 import com.facultytimetable.pro.data.local.db.entity.SubjectType
-import com.facultytimetable.pro.presentation.common.components.AppCard
-import com.facultytimetable.pro.presentation.common.components.AppFAB
-import com.facultytimetable.pro.presentation.common.components.AppTopBar
-import com.facultytimetable.pro.presentation.common.components.ConfirmDialog
-import com.facultytimetable.pro.presentation.common.components.EmptyState
-import com.facultytimetable.pro.presentation.common.components.LoadingState
-import com.facultytimetable.pro.presentation.common.components.SearchBar
+import com.facultytimetable.pro.presentation.common.components.*
 import com.facultytimetable.pro.presentation.navigation.Routes
 import com.facultytimetable.pro.presentation.theme.SubjectLab
 import com.facultytimetable.pro.presentation.theme.SubjectLibrary
@@ -58,6 +56,7 @@ import com.facultytimetable.pro.presentation.theme.SubjectProject
 import com.facultytimetable.pro.presentation.theme.SubjectSeminar
 import com.facultytimetable.pro.presentation.theme.SubjectSports
 import com.facultytimetable.pro.presentation.theme.SubjectTheory
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,56 +66,71 @@ fun SubjectListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<SubjectEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(
-            title = "Subjects",
-            actions = {
-                if (state.subjects.isNotEmpty()) {
-                    Text(
-                        text = "${state.subjects.size}",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 16.dp)
-                    )
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                title = "Subjects",
+                actions = {
+                    if (state.subjects.isNotEmpty()) {
+                        Text(
+                            text = "${state.subjects.size}",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = 16.dp)
+                        )
+                    }
                 }
-            }
-        )
-
-        SearchBar(
-            query = state.searchQuery,
-            onQueryChange = viewModel::onSearchQueryChange,
-            placeholder = "Search by name, code, or department...",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-
-        if (state.isLoading) {
-            LoadingState()
-        } else if (state.subjects.isEmpty()) {
-            EmptyState(
-                title = if (state.searchQuery.isNotBlank()) "No Results Found" else "No Subjects",
-                message = if (state.searchQuery.isNotBlank()) "Try adjusting your search terms"
-                else "Tap the + button below to add your first subject"
             )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(state.subjects, key = { it.id }) { subject ->
-                    SubjectCard(
-                        subject = subject,
-                        departmentName = state.departmentNames[subject.departmentId] ?: "",
-                        onClick = { navController.navigate(Routes.subjectForm(subject.id)) },
-                        onEdit = { navController.navigate(Routes.subjectForm(subject.id)) },
-                        onDelete = { showDeleteDialog = subject }
-                    )
+        },
+        snackbarHost = { UndoSnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            AppFAB(
+                onClick = { navController.navigate(Routes.subjectForm()) },
+                extended = state.subjects.isNotEmpty(),
+                scrollState = listState
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            SearchBar(
+                query = state.searchQuery,
+                onQueryChange = viewModel::onSearchQueryChange,
+                placeholder = "Search by name, code, or department...",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            if (state.isLoading) {
+                LoadingState()
+            } else if (state.subjects.isEmpty()) {
+                ProfessionalEmptyState(
+                    icon = Icons.Default.Book,
+                    title = if (state.searchQuery.isNotBlank()) "No Results Found" else "No Subjects",
+                    description = if (state.searchQuery.isNotBlank()) "Try adjusting your search terms"
+                    else "Tap the + button below to add your first subject"
+                )
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    items(state.subjects, key = { it.id }) { subject ->
+                        SubjectCard(
+                            subject = subject,
+                            departmentName = state.departmentNames[subject.departmentId] ?: "",
+                            onClick = { navController.navigate(Routes.subjectForm(subject.id)) },
+                            onEdit = { navController.navigate(Routes.subjectForm(subject.id)) },
+                            onDelete = { showDeleteDialog = subject }
+                        )
+                    }
                 }
             }
         }
-
-        AppFAB(onClick = { navController.navigate(Routes.subjectForm()) })
     }
 
     showDeleteDialog?.let { subject ->
@@ -124,7 +138,16 @@ fun SubjectListScreen(
             title = "Delete Subject",
             message = "Are you sure you want to delete ${subject.name} (${subject.code})?",
             confirmText = "Delete",
-            onConfirm = { viewModel.deleteSubject(subject); showDeleteDialog = null },
+            onConfirm = {
+                viewModel.deleteSubject(subject)
+                showDeleteDialog = null
+                scope.launch {
+                    snackbarHostState.showUndoSnackbar(
+                        message = "${subject.name} deleted",
+                        onUndo = { viewModel.restoreSubject(subject) }
+                    )
+                }
+            },
             onDismiss = { showDeleteDialog = null },
             isDestructive = true
         )

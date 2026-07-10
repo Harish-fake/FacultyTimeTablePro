@@ -2,6 +2,9 @@ package com.facultytimetable.pro.presentation.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
+import com.facultytimetable.pro.data.local.db.dao.HolidayDao
+import com.facultytimetable.pro.data.local.db.dao.SemesterDao
 import com.facultytimetable.pro.domain.repository.DepartmentRepository
 import com.facultytimetable.pro.domain.repository.FacultyRepository
 import com.facultytimetable.pro.domain.repository.LabRepository
@@ -17,6 +20,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 data class SearchSuggestion(
@@ -29,6 +35,7 @@ data class SearchSuggestion(
 data class SearchState(
     val query: String = "",
     val results: List<SearchSuggestion> = emptyList(),
+    val groupedResults: Map<String, List<SearchSuggestion>> = emptyMap(),
     val isSearching: Boolean = false
 )
 
@@ -39,7 +46,10 @@ class SearchViewModel @Inject constructor(
     private val roomRepository: RoomRepository,
     private val departmentRepository: DepartmentRepository,
     private val sectionRepository: SectionRepository,
-    private val labRepository: LabRepository
+    private val labRepository: LabRepository,
+    private val holidayDao: HolidayDao,
+    private val semesterDao: SemesterDao,
+    private val academicYearDao: AcademicYearDao
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchState())
@@ -51,7 +61,7 @@ class SearchViewModel @Inject constructor(
         _state.update { it.copy(query = query) }
         searchJob?.cancel()
         if (query.isBlank()) {
-            _state.update { it.copy(results = emptyList(), isSearching = false) }
+            _state.update { it.copy(results = emptyList(), groupedResults = emptyMap(), isSearching = false) }
             return
         }
         searchJob = viewModelScope.launch {
@@ -72,6 +82,9 @@ class SearchViewModel @Inject constructor(
         val rooms = roomRepository.getAllRooms().first()
         val sections = sectionRepository.getAllSections().first()
         val labs = labRepository.getAllLabs().first()
+        val holidays = holidayDao.getAllHolidays().first()
+        val semesters = semesterDao.getAllSemesters().first()
+        val years = academicYearDao.getAllAcademicYears().first()
         val deptMap = departments.associateBy { it.id }
 
         for (f in faculty) {
@@ -98,25 +111,58 @@ class SearchViewModel @Inject constructor(
         }
 
         for (r in rooms) {
-            if (r.name.contains(q, true) || r.building.contains(q, true) || r.roomNumber.contains(q, true)) {
+            if (r.name.contains(q, true) || r.building.contains(q, true) || r.code.contains(q, true)) {
                 results.add(SearchSuggestion("Room", r.id, r.name, "${r.type.name} | ${r.building}"))
             }
         }
 
         for (l in labs) {
-            if (l.name.contains(q, true) || l.roomNumber.contains(q, true) || l.building.contains(q, true)) {
+            if (l.name.contains(q, true) || l.code.contains(q, true) || l.equipment.contains(q, true)) {
                 val deptName = deptMap[l.departmentId]?.name ?: ""
-                results.add(SearchSuggestion("Lab", l.id, l.name, "$deptName | ${l.roomNumber}"))
+                results.add(SearchSuggestion("Lab", l.id, l.name, "$deptName | ${l.code}"))
             }
         }
 
         for (s in sections) {
-            if (s.name.contains(q, true)) {
+            if (s.name.contains(q, true) || s.code.contains(q, true)) {
                 val deptName = deptMap[s.departmentId]?.name ?: ""
                 results.add(SearchSuggestion("Section", s.id, s.name, deptName))
             }
         }
 
-        _state.update { it.copy(results = results.take(50)) }
+        val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        for (h in holidays) {
+            if (h.name.contains(q, true) || h.type.name.contains(q, true)) {
+                results.add(SearchSuggestion("Holiday", h.id, h.name, "${h.type.name} | ${dateFormat.format(Date(h.date))}"))
+            }
+        }
+
+        for (s in semesters) {
+            if (s.name.contains(q, true) || s.code.contains(q, true)) {
+                results.add(SearchSuggestion("Semester", s.id, "${s.name} (${s.code})", "${dateFormat.format(Date(s.startDate))} - ${dateFormat.format(Date(s.endDate))}"))
+            }
+        }
+
+        for (y in years) {
+            if (y.name.contains(q, true) || y.code.contains(q, true)) {
+                results.add(SearchSuggestion("Academic Year", y.id, y.name, y.code))
+            }
+        }
+
+        val limited = results.take(50)
+        _state.update {
+            it.copy(
+                results = limited,
+                groupedResults = limited.groupBy { s -> s.type }
+                    .toSortedMap(compareBy { typeOrder.indexOf(it) })
+            )
+        }
+    }
+
+    companion object {
+        private val typeOrder = listOf(
+            "Faculty", "Department", "Subject", "Section",
+            "Room", "Lab", "Semester", "Academic Year", "Holiday"
+        )
     }
 }

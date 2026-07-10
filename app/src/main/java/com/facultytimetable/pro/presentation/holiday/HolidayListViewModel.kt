@@ -16,10 +16,15 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
+enum class HolidayType {
+    PUBLIC, NATIONAL, INSTITUTE, EXAM, OTHER
+}
+
 data class HolidayUi(
     val id: Long = 0,
     val name: String,
     val date: Long,
+    val type: HolidayType = HolidayType.OTHER,
     val description: String = "",
     val isRecurring: Boolean = false
 ) {
@@ -27,14 +32,17 @@ data class HolidayUi(
         id = id,
         name = name,
         date = date,
+        type = type,
+        description = description,
         isRecurring = isRecurring
     )
 }
 
-fun HolidayEntity.toUi(description: String = "") = HolidayUi(
+fun HolidayEntity.toUi() = HolidayUi(
     id = id,
     name = name,
     date = date,
+    type = type,
     description = description,
     isRecurring = isRecurring
 )
@@ -70,23 +78,15 @@ class HolidayListViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun addHoliday(name: String, date: Long, isRecurring: Boolean) {
-        viewModelScope.launch {
-            holidayDao.insert(
-                HolidayEntity(name = name, date = date, isRecurring = isRecurring)
-            )
-        }
-    }
-
-    fun updateHoliday(holiday: HolidayUi) {
-        viewModelScope.launch {
-            holidayDao.update(holiday.toEntity())
-        }
-    }
-
     fun deleteHoliday(holiday: HolidayUi) {
         viewModelScope.launch {
             holidayDao.deleteById(holiday.id)
+        }
+    }
+
+    fun restoreHoliday(holiday: HolidayUi) {
+        viewModelScope.launch {
+            holidayDao.insert(holiday.toEntity())
         }
     }
 
