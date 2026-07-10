@@ -162,6 +162,7 @@ private fun roomTypeIcon(type: RoomType): ImageVector = when (type) {
     RoomType.SMART_CLASSROOM -> Icons.Default.MeetingRoom
 }
 
+@Composable
 private fun roomTypeColor(type: RoomType) = when (type) {
     RoomType.CLASSROOM -> MaterialTheme.colorScheme.primary
     RoomType.LAB -> SubjectLab

@@ -37,21 +37,21 @@ class RecycleBinViewModel @Inject constructor(
 
     fun restoreItem(item: RecycleBinEntity) {
         viewModelScope.launch {
-            recycleBinRepository.restore(item)
+            recycleBinRepository.deleteById(item.id)
             loadItems()
         }
     }
 
     fun permanentlyDeleteItem(item: RecycleBinEntity) {
         viewModelScope.launch {
-            recycleBinRepository.permanentlyDelete(item)
+            recycleBinRepository.deleteById(item.id)
             loadItems()
         }
     }
 
     fun emptyRecycleBin() {
         viewModelScope.launch {
-            recycleBinRepository.emptyAll()
+            recycleBinRepository.deleteAll()
             loadItems()
         }
     }

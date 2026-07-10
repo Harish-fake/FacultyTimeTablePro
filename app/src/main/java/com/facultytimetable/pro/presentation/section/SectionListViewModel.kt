@@ -35,6 +35,13 @@ data class SectionWithDetails(
     val roomName: String = ""
 )
 
+private data class LookupData(
+    val semesters: List<SemesterEntity>,
+    val departments: List<DepartmentEntity>,
+    val years: List<AcademicYearEntity>,
+    val rooms: List<RoomEntity>
+)
+
 @HiltViewModel
 class SectionListViewModel @Inject constructor(
     private val sectionRepository: SectionRepository,
@@ -46,31 +53,24 @@ class SectionListViewModel @Inject constructor(
 
     private val searchQuery = MutableStateFlow("")
 
+    private val lookupFlow = combine(
+        semesterDao.getAllSemesters(),
+        departmentDao.getAllDepartments(),
+        academicYearDao.getAllAcademicYears(),
+        roomDao.getAllRooms()
+    ) { semesters, departments, years, rooms ->
+        LookupData(semesters, departments, years, rooms)
+    }
+
     val state: StateFlow<SectionListState> = combine(
-        arrayOf(
-            sectionRepository.getAllSections(),
-            semesterDao.getAllSemesters(),
-            departmentDao.getAllDepartments(),
-            academicYearDao.getAllAcademicYears(),
-            roomDao.getAllRooms(),
-            searchQuery
-        )
-    ) { args ->
-        @Suppress("UNCHECKED_CAST")
-        val sections = args[0] as List<SectionEntity>
-        @Suppress("UNCHECKED_CAST")
-        val semesters = args[1] as List<SemesterEntity>
-        @Suppress("UNCHECKED_CAST")
-        val departments = args[2] as List<DepartmentEntity>
-        @Suppress("UNCHECKED_CAST")
-        val years = args[3] as List<AcademicYearEntity>
-        @Suppress("UNCHECKED_CAST")
-        val rooms = args[4] as List<RoomEntity>
-        val query = args[5] as String
-        val semMap = semesters.associateBy { it.id }
-        val deptMap = departments.associateBy { it.id }
-        val yearMap = years.associateBy { it.id }
-        val roomMap = rooms.associateBy { it.id }
+        sectionRepository.getAllSections(),
+        lookupFlow,
+        searchQuery
+    ) { sections, lookup, query ->
+        val semMap = lookup.semesters.associateBy { it.id }
+        val deptMap = lookup.departments.associateBy { it.id }
+        val yearMap = lookup.years.associateBy { it.id }
+        val roomMap = lookup.rooms.associateBy { it.id }
 
         val sectionDetails = sections.map {
             SectionWithDetails(
