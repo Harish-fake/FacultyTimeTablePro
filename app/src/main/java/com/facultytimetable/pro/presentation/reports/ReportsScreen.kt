@@ -294,7 +294,7 @@ private fun ExportActions(
                         val file = exportReportAsCsv(
                             context, reportType,
                             facultyWorkload, departmentSummaries, subjectAllocations,
-                            roomUtilizations, freePeriods, missingHours, conflicts
+                            roomUtilizations, labUtilizations, freePeriods, missingHours, conflicts
                         )
                         val uri = FileProvider.getUriForFile(
                             context,
@@ -325,7 +325,7 @@ private fun ExportActions(
                         val file = exportReportAsCsv(
                             context, reportType,
                             facultyWorkload, departmentSummaries, subjectAllocations,
-                            roomUtilizations, freePeriods, missingHours, conflicts
+                            roomUtilizations, labUtilizations, freePeriods, missingHours, conflicts
                         )
                         val uri = FileProvider.getUriForFile(
                             context,
@@ -361,6 +361,7 @@ private fun exportReportAsCsv(
     departmentSummaries: List<DepartmentSummary> = emptyList(),
     subjectAllocations: List<SubjectAllocation> = emptyList(),
     roomUtilizations: List<RoomUtilization> = emptyList(),
+    labUtilizations: List<RoomUtilization> = emptyList(),
     freePeriods: List<FreePeriod> = emptyList(),
     missingHours: List<MissingHour> = emptyList(),
     conflicts: List<ConflictReport> = emptyList()

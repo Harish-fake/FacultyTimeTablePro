@@ -169,6 +169,7 @@ class DashboardViewModel @Inject constructor(
                     allEntries.any { it.roomId == r.id }
                 }
                 val romUtil = if (room > 0) roomUsedCount.toFloat() / room else 0f
+                val todayClassCount = todaysClasses.size
 
                 val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
                 val greeting = when (hour) {
@@ -189,7 +190,7 @@ class DashboardViewModel @Inject constructor(
                     nextClass = nextClass, conflictCount = conflictCount,
                     facultyUtilization = facUtil, roomUtilization = romUtil,
                     semesterName = "Current Semester",
-                    welcomeMessage = "$greeting! ${todayName}, $todaysClassCount classes today"
+                    welcomeMessage = "$greeting! ${todayName}, $todayClassCount classes today"
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false)

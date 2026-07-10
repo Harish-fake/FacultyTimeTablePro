@@ -62,8 +62,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
+import com.facultytimetable.pro.data.local.db.entity.RoomEntity
+import com.facultytimetable.pro.data.local.db.entity.SectionEntity
 import com.facultytimetable.pro.data.local.db.entity.SlotType
+import com.facultytimetable.pro.data.local.db.entity.SubjectEntity
 import com.facultytimetable.pro.data.local.db.entity.SubjectType
+import com.facultytimetable.pro.data.local.db.entity.TimeSlotEntity
+import com.facultytimetable.pro.data.local.db.entity.TimetableEntryEntity
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.LoadingState
 import com.facultytimetable.pro.presentation.navigation.Routes
