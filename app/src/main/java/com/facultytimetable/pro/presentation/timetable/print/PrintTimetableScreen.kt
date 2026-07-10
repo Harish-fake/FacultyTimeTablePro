@@ -573,6 +573,7 @@ private fun exportPdf(context: Context, state: PrintTimetableState): java.io.Fil
                 canvas.drawText(fac?.name?.split(" ")?.last() ?: "", cx, y + 22f, smallTextPaint)
             } else {
                 when (slot.type) {
+                    SlotType.REGULAR -> { }
                     SlotType.LUNCH -> canvas.drawText("LUNCH", cx, y + 18f,
                         Paint().apply { textSize = 8f; color = android.graphics.Color.parseColor("#BDBDBD") })
                     SlotType.BREAK -> canvas.drawText("BREAK", cx, y + 18f,
