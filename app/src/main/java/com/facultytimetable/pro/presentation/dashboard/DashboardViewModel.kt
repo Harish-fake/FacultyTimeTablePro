@@ -2,6 +2,7 @@ package com.facultytimetable.pro.presentation.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.facultytimetable.pro.data.local.datastore.AppPreferences
 import com.facultytimetable.pro.domain.repository.DepartmentRepository
 import com.facultytimetable.pro.domain.repository.FacultyRepository
 import com.facultytimetable.pro.domain.repository.RoomRepository
@@ -20,11 +21,13 @@ data class DashboardState(
     val subjectCount: Int = 0,
     val roomCount: Int = 0,
     val timetableCount: Int = 0,
+    val firstLaunch: Boolean = false,
     val isLoading: Boolean = true
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
+    private val appPreferences: AppPreferences,
     departmentRepository: DepartmentRepository,
     facultyRepository: FacultyRepository,
     subjectRepository: SubjectRepository,
@@ -39,14 +42,15 @@ class DashboardViewModel @Inject constructor(
     private val ttCount = timetableRepository.getCountFlow()
 
     val state: StateFlow<DashboardState> = combine(
-        deptCount, facCount, subjCount, roomCount, ttCount
-    ) { dept, fac, subj, room, tt ->
+        deptCount, facCount, subjCount, roomCount, ttCount, appPreferences.isFirstLaunch
+    ) { dept, fac, subj, room, tt, firstLaunch ->
         DashboardState(
             departmentCount = dept,
             facultyCount = fac,
             subjectCount = subj,
             roomCount = room,
             timetableCount = tt,
+            firstLaunch = firstLaunch,
             isLoading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardState())

@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -27,10 +28,33 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.facultytimetable.pro.presentation.onboarding.OnboardingScreen
+import com.facultytimetable.pro.presentation.setup.SetupWizardScreen
 import com.facultytimetable.pro.presentation.dashboard.DashboardScreen
 import com.facultytimetable.pro.presentation.faculty.list.FacultyListScreen
 import com.facultytimetable.pro.presentation.timetable.grid.TimetableGridScreen
 import com.facultytimetable.pro.presentation.settings.SettingsScreen
+import com.facultytimetable.pro.presentation.department.DepartmentListScreen
+import com.facultytimetable.pro.presentation.department.DepartmentFormScreen
+import com.facultytimetable.pro.presentation.faculty.detail.FacultyDetailScreen
+import com.facultytimetable.pro.presentation.faculty.form.FacultyFormScreen
+import com.facultytimetable.pro.presentation.subject.SubjectListScreen
+import com.facultytimetable.pro.presentation.subject.SubjectFormScreen
+import com.facultytimetable.pro.presentation.section.SectionListScreen
+import com.facultytimetable.pro.presentation.section.SectionFormScreen
+import com.facultytimetable.pro.presentation.room.RoomListScreen
+import com.facultytimetable.pro.presentation.room.RoomFormScreen
+import com.facultytimetable.pro.presentation.academicyear.AcademicYearListScreen
+import com.facultytimetable.pro.presentation.academicyear.AcademicYearFormScreen
+import com.facultytimetable.pro.presentation.semester.SemesterListScreen
+import com.facultytimetable.pro.presentation.semester.SemesterFormScreen
+import com.facultytimetable.pro.presentation.timeslot.TimeSlotConfigScreen
+import com.facultytimetable.pro.presentation.holiday.HolidayListScreen
+import com.facultytimetable.pro.presentation.leave.FacultyLeaveScreen
+import com.facultytimetable.pro.presentation.timetable.generator.GeneratorScreen
+import com.facultytimetable.pro.presentation.search.SearchScreen
+import com.facultytimetable.pro.presentation.reports.ReportsScreen
+import com.facultytimetable.pro.presentation.backup.BackupScreen
 
 data class BottomNavItem(
     val route: String,
@@ -80,11 +104,21 @@ fun NavGraph() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.DASHBOARD,
+            startDestination = Routes.ONBOARDING,
             modifier = Modifier.padding(innerPadding),
             enterTransition = { fadeIn(animationSpec = tween(300)) },
             exitTransition = { fadeOut(animationSpec = tween(300)) }
         ) {
+            composable(Routes.ONBOARDING) {
+                OnboardingScreen(
+                    onComplete = { navController.navigate(Routes.DASHBOARD) { popUpTo(Routes.ONBOARDING) { inclusive = true } } }
+                )
+            }
+
+            composable(Routes.SETUP_WIZARD) {
+                SetupWizardScreen(navController = navController)
+            }
+
             composable(Routes.DASHBOARD) {
                 DashboardScreen(navController = navController)
             }
@@ -106,7 +140,7 @@ fun NavGraph() {
                 arguments = listOf(navArgument("facultyId") { type = NavType.LongType })
             ) { backStackEntry ->
                 val facultyId = backStackEntry.arguments?.getLong("facultyId") ?: return@composable
-                com.facultytimetable.pro.presentation.faculty.detail.FacultyDetailScreen(
+                FacultyDetailScreen(
                     facultyId = facultyId,
                     navController = navController
                 )
@@ -120,14 +154,14 @@ fun NavGraph() {
                 })
             ) { backStackEntry ->
                 val facultyId = backStackEntry.arguments?.getLong("facultyId") ?: -1L
-                com.facultytimetable.pro.presentation.faculty.form.FacultyFormScreen(
+                FacultyFormScreen(
                     facultyId = if (facultyId == -1L) null else facultyId,
                     navController = navController
                 )
             }
 
             composable(Routes.DEPARTMENT_LIST) {
-                com.facultytimetable.pro.presentation.department.DepartmentListScreen(navController = navController)
+                DepartmentListScreen(navController = navController)
             }
 
             composable(
@@ -138,14 +172,14 @@ fun NavGraph() {
                 })
             ) { backStackEntry ->
                 val deptId = backStackEntry.arguments?.getLong("departmentId") ?: -1L
-                com.facultytimetable.pro.presentation.department.DepartmentFormScreen(
+                DepartmentFormScreen(
                     departmentId = if (deptId == -1L) null else deptId,
                     navController = navController
                 )
             }
 
             composable(Routes.SUBJECT_LIST) {
-                com.facultytimetable.pro.presentation.subject.SubjectListScreen(navController = navController)
+                SubjectListScreen(navController = navController)
             }
 
             composable(
@@ -156,14 +190,14 @@ fun NavGraph() {
                 })
             ) { backStackEntry ->
                 val subjId = backStackEntry.arguments?.getLong("subjectId") ?: -1L
-                com.facultytimetable.pro.presentation.subject.SubjectFormScreen(
+                SubjectFormScreen(
                     subjectId = if (subjId == -1L) null else subjId,
                     navController = navController
                 )
             }
 
             composable(Routes.ROOM_LIST) {
-                com.facultytimetable.pro.presentation.room.RoomListScreen(navController = navController)
+                RoomListScreen(navController = navController)
             }
 
             composable(
@@ -174,37 +208,14 @@ fun NavGraph() {
                 })
             ) { backStackEntry ->
                 val roomId = backStackEntry.arguments?.getLong("roomId") ?: -1L
-                com.facultytimetable.pro.presentation.room.RoomFormScreen(
+                RoomFormScreen(
                     roomId = if (roomId == -1L) null else roomId,
                     navController = navController
                 )
             }
 
-            composable(
-                route = Routes.TIMETABLE_SECTION,
-                arguments = listOf(navArgument("sectionId") { type = NavType.LongType })
-            ) {
-                com.facultytimetable.pro.presentation.timetable.section.SectionTimetableScreen(
-                    navController = navController
-                )
-            }
-
-            composable(Routes.TIMETABLE_GENERATOR) {
-                com.facultytimetable.pro.presentation.timetable.generator.GeneratorScreen(
-                    navController = navController
-                )
-            }
-
-            composable(Routes.SEARCH) {
-                com.facultytimetable.pro.presentation.search.SearchScreen(navController = navController)
-            }
-
-            composable(Routes.REPORTS) {
-                com.facultytimetable.pro.presentation.reports.ReportsScreen(navController = navController)
-            }
-
             composable(Routes.SECTION_LIST) {
-                com.facultytimetable.pro.presentation.section.SectionListScreen(navController = navController)
+                SectionListScreen(navController = navController)
             }
 
             composable(
@@ -215,14 +226,81 @@ fun NavGraph() {
                 })
             ) { backStackEntry ->
                 val sectionId = backStackEntry.arguments?.getLong("sectionId") ?: -1L
-                com.facultytimetable.pro.presentation.section.SectionFormScreen(
+                SectionFormScreen(
                     sectionId = if (sectionId == -1L) null else sectionId,
                     navController = navController
                 )
             }
 
+            composable(Routes.ACADEMIC_YEAR_LIST) {
+                AcademicYearListScreen(navController = navController)
+            }
+
+            composable(
+                route = Routes.ACADEMIC_YEAR_FORM,
+                arguments = listOf(navArgument("yearId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                })
+            ) { backStackEntry ->
+                val yearId = backStackEntry.arguments?.getLong("yearId") ?: -1L
+                AcademicYearFormScreen(
+                    yearId = if (yearId == -1L) null else yearId,
+                    navController = navController
+                )
+            }
+
+            composable(Routes.SEMESTER_LIST) {
+                SemesterListScreen(navController = navController)
+            }
+
+            composable(
+                route = Routes.SEMESTER_FORM,
+                arguments = listOf(navArgument("semesterId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                })
+            ) { backStackEntry ->
+                val semId = backStackEntry.arguments?.getLong("semesterId") ?: -1L
+                SemesterFormScreen(
+                    semesterId = if (semId == -1L) null else semId,
+                    navController = navController
+                )
+            }
+
+            composable(Routes.TIME_SLOT_CONFIG) {
+                TimeSlotConfigScreen(navController = navController)
+            }
+
+            composable(Routes.HOLIDAY_LIST) {
+                HolidayListScreen(navController = navController)
+            }
+
+            composable(
+                route = Routes.FACULTY_LEAVE,
+                arguments = listOf(navArgument("facultyId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val facultyId = backStackEntry.arguments?.getLong("facultyId") ?: return@composable
+                FacultyLeaveScreen(
+                    facultyId = facultyId,
+                    navController = navController
+                )
+            }
+
+            composable(Routes.TIMETABLE_GENERATOR) {
+                GeneratorScreen(navController = navController)
+            }
+
+            composable(Routes.SEARCH) {
+                SearchScreen(navController = navController)
+            }
+
+            composable(Routes.REPORTS) {
+                ReportsScreen(navController = navController)
+            }
+
             composable(Routes.BACKUP) {
-                com.facultytimetable.pro.presentation.backup.BackupScreen(navController = navController)
+                BackupScreen(navController = navController)
             }
         }
     }

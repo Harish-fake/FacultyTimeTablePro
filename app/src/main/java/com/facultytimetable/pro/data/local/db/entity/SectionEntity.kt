@@ -23,6 +23,8 @@ data class SectionEntity(
     val name: String,
     val semesterId: Long,
     val strength: Int = 0,
+    val classAdvisor: String = "",
+    val roomId: Long = -1,
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

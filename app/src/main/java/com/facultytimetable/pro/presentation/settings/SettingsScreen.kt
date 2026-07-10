@@ -1,7 +1,6 @@
 package com.facultytimetable.pro.presentation.settings
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,19 +13,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CalendarViewWeek
+import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.RestorePage
+import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -44,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
+import com.facultytimetable.pro.presentation.common.components.SectionHeader
+import com.facultytimetable.pro.presentation.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,158 +68,71 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            Text(
-                "Appearance",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SettingsCard(
-                icon = Icons.Default.DarkMode,
-                title = "Dark Mode",
-                subtitle = when (state.themeMode) {
-                    "dark" -> "Dark"
-                    "light" -> "Light"
-                    else -> "System default"
-                },
-                onClick = {
-                    val next = when (state.themeMode) {
-                        "system" -> "light"
-                        "light" -> "dark"
-                        else -> "system"
-                    }
-                    viewModel.setThemeMode(next)
-                }
-            )
-
-            SettingsCard(
-                icon = Icons.Default.TextFields,
-                title = "Font Size",
-                subtitle = "Default",
-                onClick = { /* TODO */ }
-            )
-
-            SettingsCard(
-                icon = Icons.Default.Language,
-                title = "Language",
-                subtitle = "English",
-                onClick = { /* TODO */ }
-            )
+            SectionHeader("Setup")
+            SettingsCard(icon = Icons.Default.RocketLaunch, "Setup Wizard", "Guided step-by-step configuration",
+                onClick = { navController.navigate(Routes.SETUP_WIZARD) })
 
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                "Security",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            SectionHeader("Appearance")
+            SettingsCard(icon = Icons.Default.DarkMode, "Dark Mode",
+                when (state.themeMode) { "dark" -> "Dark"; "light" -> "Light"; else -> "System default" },
+                onClick = {
+                    val next = when (state.themeMode) { "system" -> "light"; "light" -> "dark"; else -> "system" }
+                    viewModel.setThemeMode(next)
+                })
+            SettingsCard(icon = Icons.Default.TextFields, "Font Size", "Default", onClick = {})
+            SettingsCard(icon = Icons.Default.Language, "Language", "English", onClick = {})
 
-            SettingsSwitch(
-                icon = Icons.Default.Lock,
-                title = "App Lock",
-                subtitle = "Require PIN to open app",
-                checked = state.isAppLockEnabled,
-                onCheckedChange = viewModel::setAppLockEnabled
-            )
-
+            Spacer(modifier = Modifier.height(24.dp))
+            SectionHeader("Security")
+            SettingsSwitch(icon = Icons.Default.Lock, "App Lock", "Require PIN to open app",
+                checked = state.isAppLockEnabled, onCheckedChange = viewModel::setAppLockEnabled)
             if (state.isAppLockEnabled) {
-                SettingsSwitch(
-                    icon = Icons.Default.Fingerprint,
-                    title = "Biometric",
-                    subtitle = "Use fingerprint to unlock",
-                    checked = state.isBiometricEnabled,
-                    onCheckedChange = viewModel::setBiometricEnabled
-                )
+                SettingsSwitch(icon = Icons.Default.Fingerprint, "Biometric", "Use fingerprint to unlock",
+                    checked = state.isBiometricEnabled, onCheckedChange = viewModel::setBiometricEnabled)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                "Data Management",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SettingsCard(
-                icon = Icons.Default.School,
-                title = "Departments",
-                subtitle = "Manage departments & HODs",
-                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.DEPARTMENT_LIST) }
-            )
-
-            SettingsCard(
-                icon = Icons.Default.People,
-                title = "Faculty",
-                subtitle = "Manage faculty & designations",
-                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.FACULTY_LIST) }
-            )
-
-            SettingsCard(
-                icon = Icons.Default.Book,
-                title = "Subjects",
-                subtitle = "Manage subjects & codes",
-                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.SUBJECT_LIST) }
-            )
-
-            SettingsCard(
-                icon = Icons.Default.MeetingRoom,
-                title = "Rooms & Labs",
-                subtitle = "Manage rooms & facilities",
-                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.ROOM_LIST) }
-            )
-
-            SettingsCard(
-                icon = Icons.Default.Group,
-                title = "Sections",
-                subtitle = "Manage sections & strength",
-                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.SECTION_LIST) }
-            )
+            SectionHeader("College Setup")
+            SettingsCard(icon = Icons.Default.School, "Departments", "Manage departments & HODs",
+                onClick = { navController.navigate(Routes.DEPARTMENT_LIST) })
+            SettingsCard(icon = Icons.Default.DateRange, "Academic Years", "Manage academic years",
+                onClick = { navController.navigate(Routes.ACADEMIC_YEAR_LIST) })
+            SettingsCard(icon = Icons.Default.CalendarViewWeek, "Semesters", "Manage semesters",
+                onClick = { navController.navigate(Routes.SEMESTER_LIST) })
+            SettingsCard(icon = Icons.Default.CalendarMonth, "Working Days & Time Slots", "Configure periods, breaks, lunch",
+                onClick = { navController.navigate(Routes.TIME_SLOT_CONFIG) })
+            SettingsCard(icon = Icons.Default.Celebration, "Holidays", "Manage college holidays",
+                onClick = { navController.navigate(Routes.HOLIDAY_LIST) })
 
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                "Data",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            SectionHeader("Resources")
+            SettingsCard(icon = Icons.Default.AccessTime, "Rooms & Labs", "Manage rooms & facilities",
+                onClick = { navController.navigate(Routes.ROOM_LIST) })
+            SettingsCard(icon = Icons.Default.AccessTime, "Sections", "Manage sections & student strength",
+                onClick = { navController.navigate(Routes.SECTION_LIST) })
 
-            SettingsCard(
-                icon = Icons.Default.Backup,
-                title = "Backup & Restore",
-                subtitle = "Manage backups",
-                onClick = { navController.navigate(com.facultytimetable.pro.presentation.navigation.Routes.BACKUP) }
-            )
+            Spacer(modifier = Modifier.height(24.dp))
+            SectionHeader("Tools")
+            SettingsCard(icon = Icons.Default.Assessment, "Reports", "View workload, utilization, conflicts",
+                onClick = { navController.navigate(Routes.REPORTS) })
 
-            SettingsCard(
-                icon = Icons.Default.Notifications,
-                title = "Backup Reminder",
-                subtitle = "Every ${state.backupReminderInterval} days",
+            Spacer(modifier = Modifier.height(24.dp))
+            SectionHeader("Data")
+            SettingsCard(icon = Icons.Default.Backup, "Backup & Restore", "Create and restore database backups",
+                onClick = { navController.navigate(Routes.BACKUP) })
+            SettingsCard(icon = Icons.Default.Notifications, "Backup Reminder", "Every ${state.backupReminderInterval} days",
                 onClick = {
-                    val next = when (state.backupReminderInterval) {
-                        7 -> 14
-                        14 -> 30
-                        else -> 7
-                    }
+                    val next = when (state.backupReminderInterval) { 7 -> 14; 14 -> 30; else -> 7 }
                     viewModel.setBackupReminderInterval(next)
-                }
-            )
+                })
+            SettingsCard(icon = Icons.Default.DeleteSweep, "Reset All Data", "Clear all entries and start fresh",
+                onClick = { /* Show confirm dialog */ })
 
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                "About",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SettingsCardSimple(title = "Version", subtitle = "1.0.0")
-            SettingsCardSimple(title = "Developer", subtitle = "Faculty TimeTable Pro Team")
+            SectionHeader("About")
+            SettingsCard(icon = Icons.Default.Info, "Version", "1.0.0", onClick = {})
+            SettingsCard(icon = Icons.Default.Info, "Developer", "Faculty TimeTable Pro Team", onClick = {})
 
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -221,25 +140,12 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsCard(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
+private fun SettingsCard(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
@@ -250,49 +156,18 @@ private fun SettingsCard(
 }
 
 @Composable
-private fun SettingsSwitch(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
+private fun SettingsSwitch(icon: ImageVector, title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(vertical = 12.dp, horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) }.padding(vertical = 12.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-}
-
-@Composable
-private fun SettingsCardSimple(title: String, subtitle: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Spacer(modifier = Modifier.width(40.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }

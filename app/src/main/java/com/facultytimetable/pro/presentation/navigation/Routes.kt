@@ -1,6 +1,8 @@
 package com.facultytimetable.pro.presentation.navigation
 
 object Routes {
+    const val ONBOARDING = "onboarding"
+    const val SETUP_WIZARD = "setup/wizard"
     const val DASHBOARD = "dashboard"
     const val FACULTY_LIST = "faculty/list"
     const val FACULTY_DETAIL = "faculty/detail/{facultyId}"
@@ -19,6 +21,9 @@ object Routes {
     const val ACADEMIC_YEAR_FORM = "academic_year/form?yearId={yearId}"
     const val TIME_SLOT_CONFIG = "timeslot/config"
     const val HOLIDAY_LIST = "holiday/list"
+    const val HOLIDAY_FORM = "holiday/form?holidayId={holidayId}"
+    const val FACULTY_LEAVE = "faculty/leave/{facultyId}"
+    const val FACULTY_LEAVE_FORM = "faculty/leave/form?facultyId={facultyId}&leaveId={leaveId}"
     const val TIMETABLE_GRID = "timetable/grid"
     const val TIMETABLE_DAILY = "timetable/daily/{day}"
     const val TIMETABLE_FACULTY = "timetable/faculty/{facultyId}"
@@ -26,9 +31,9 @@ object Routes {
     const val TIMETABLE_ROOM = "timetable/room/{roomId}"
     const val TIMETABLE_SECTION = "timetable/section/{sectionId}"
     const val TIMETABLE_GENERATOR = "timetable/generator"
-    const val FACULTY_LEAVE = "faculty/leave/{facultyId}"
     const val SEARCH = "search"
     const val REPORTS = "reports"
+    const val REPORT_DETAIL = "reports/{reportType}"
     const val BACKUP = "backup"
     const val SETTINGS = "settings"
     const val APP_LOCK = "security/lock"
@@ -41,10 +46,15 @@ object Routes {
     fun sectionForm(id: Long? = null) = if (id != null) "section/form?sectionId=$id" else "section/form"
     fun semesterForm(id: Long? = null) = if (id != null) "semester/form?semesterId=$id" else "semester/form"
     fun academicYearForm(id: Long? = null) = if (id != null) "academic_year/form?yearId=$id" else "academic_year/form"
+    fun holidayForm(id: Long? = null) = if (id != null) "holiday/form?holidayId=$id" else "holiday/form"
     fun timetableDaily(day: Int) = "timetable/daily/$day"
     fun timetableFaculty(id: Long) = "timetable/faculty/$id"
     fun timetableDepartment(id: Long) = "timetable/department/$id"
     fun timetableRoom(id: Long) = "timetable/room/$id"
     fun timetableSection(id: Long) = "timetable/section/$id"
     fun facultyLeave(id: Long) = "faculty/leave/$id"
+    fun facultyLeaveForm(facultyId: Long, leaveId: Long? = null) =
+        if (leaveId != null) "faculty/leave/form?facultyId=$facultyId&leaveId=$leaveId"
+        else "faculty/leave/form?facultyId=$facultyId"
+    fun reportDetail(type: String) = "reports/$type"
 }

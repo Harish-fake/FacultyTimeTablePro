@@ -53,7 +53,7 @@ import com.facultytimetable.pro.data.local.db.entity.UserPreferenceEntity
         BackupHistoryEntity::class,
         AuditLogEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
