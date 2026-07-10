@@ -7,6 +7,7 @@ import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
 import com.facultytimetable.pro.data.local.db.dao.AuditLogDao
 import com.facultytimetable.pro.data.local.db.dao.SemesterDao
 import com.facultytimetable.pro.data.local.db.dao.TimeSlotDao
+import com.facultytimetable.pro.data.local.db.dao.WorkingDayDao
 import com.facultytimetable.pro.data.local.db.entity.AuditLogEntity
 import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
 import com.facultytimetable.pro.data.local.db.entity.RoomEntity
@@ -72,6 +73,7 @@ class DashboardViewModel @Inject constructor(
     private val facultyAssignmentRepository: FacultyAssignmentRepository,
     private val auditLogDao: AuditLogDao,
     private val timeSlotDao: TimeSlotDao,
+    private val workingDayDao: WorkingDayDao,
     private val conflictEngine: ConflictEngine
 ) : ViewModel() {
 
@@ -100,7 +102,9 @@ class DashboardViewModel @Inject constructor(
                 val recent = auditLogDao.getRecentLogs(10).first()
 
                 val totalSteps = 12
-                val completed = listOf(dept > 0, fac > 0, subj > 0, room > 0, lab > 0, sec > 0, year > 0, sem > 0, tt > 0, assign > 0).count { it }
+                val wdCount = workingDayDao.getWorkingDayCount()
+                val slotCount = timeSlotDao.getCount()
+                val completed = listOf(dept > 0, year > 0, sem > 0, sec > 0, wdCount > 0, slotCount > 0, room > 0, lab > 0, fac > 0, subj > 0, assign > 0, tt > 0).count { it }
                 val completion = completed.toFloat() / totalSteps
 
                 val todayDay = Calendar.getInstance().let { cal ->
@@ -185,7 +189,7 @@ class DashboardViewModel @Inject constructor(
                     nextClass = nextClass, conflictCount = conflictCount,
                     facultyUtilization = facUtil, roomUtilization = romUtil,
                     semesterName = "Current Semester",
-                    welcomeMessage = "$greeting! ${todayName}, $todaysClasses classes today"
+                    welcomeMessage = "$greeting! ${todayName}, $todaysClassCount classes today"
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false)
