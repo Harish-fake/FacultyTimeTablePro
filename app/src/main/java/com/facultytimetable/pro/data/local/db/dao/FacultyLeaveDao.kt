@@ -38,4 +38,7 @@ interface FacultyLeaveDao {
 
     @Query("DELETE FROM faculty_leave WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM faculty_leave")
+    suspend fun deleteAll()
 }

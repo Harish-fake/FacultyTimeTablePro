@@ -3,14 +3,21 @@ name: Android Build
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -18,24 +25,48 @@ jobs:
           java-version: 17
           distribution: 'temurin'
 
-      - name: Setup Android SDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+      - name: Install SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
-      - name: Setup Gradle
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.9
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon --no-configuration-cache --stacktrace
 
-      - name: Upload APK
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon --no-configuration-cache --stacktrace
+
+      - name: Verify APK and checksum
+        run: |
+          test -f app/build/outputs/apk/debug/app-debug.apk
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
+          sha256sum app/build/outputs/apk/debug/app-debug.apk | tee app-debug.apk.sha256
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging app/build/outputs/apk/debug/app-debug.apk | head -20
+
+      - name: Upload test report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: FacultyTimeTablePro-Debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FacultyTimeTablePro-v1.1.0-debug
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app-debug.apk.sha256
+          retention-days: 90

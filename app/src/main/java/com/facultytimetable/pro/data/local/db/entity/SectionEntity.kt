@@ -22,6 +22,8 @@ data class SectionEntity(
     val id: Long = 0,
     val name: String,
     val semesterId: Long,
+    /** Owning department. 0 means the department is inferred from the section name. */
+    val departmentId: Long = 0,
     val strength: Int = 0,
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),

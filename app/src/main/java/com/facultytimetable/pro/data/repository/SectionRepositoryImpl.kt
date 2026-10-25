@@ -22,4 +22,5 @@ class SectionRepositoryImpl @Inject constructor(
     override suspend fun delete(section: SectionEntity) = sectionDao.delete(section)
     override suspend fun deleteById(id: Long) = sectionDao.deleteById(id)
     override suspend fun getCount(): Int = sectionDao.getCount()
+    override fun getCountFlow(): Flow<Int> = sectionDao.getCountFlow()
 }

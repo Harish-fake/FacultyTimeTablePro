@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.facultytimetable.pro.data.local.db.entity.TimetableEntryEntity
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +15,9 @@ interface TimetableEntryDao {
 
     @Query("SELECT * FROM timetable_entries ORDER BY dayOfWeek ASC, timeSlotId ASC")
     fun getAllEntries(): Flow<List<TimetableEntryEntity>>
+
+    @Query("SELECT * FROM timetable_entries ORDER BY dayOfWeek ASC, timeSlotId ASC")
+    suspend fun getAllEntriesList(): List<TimetableEntryEntity>
 
     @Query("SELECT * FROM timetable_entries WHERE id = :id")
     suspend fun getEntryById(id: Long): TimetableEntryEntity?
@@ -71,6 +75,16 @@ interface TimetableEntryDao {
 
     @Query("DELETE FROM timetable_entries")
     suspend fun deleteAll()
+
+    /**
+     * Atomically replaces the complete timetable. If inserting the new entries fails,
+     * the previous timetable is left untouched.
+     */
+    @Transaction
+    suspend fun replaceAll(entries: List<TimetableEntryEntity>) {
+        deleteAll()
+        insertAll(entries)
+    }
 
     @Query("SELECT COUNT(*) FROM timetable_entries")
     suspend fun getCount(): Int

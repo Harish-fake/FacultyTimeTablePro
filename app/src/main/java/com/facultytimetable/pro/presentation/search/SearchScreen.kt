@@ -80,8 +80,8 @@ fun SearchScreen(
                         .clickable {
                             when (suggestion.type) {
                                 "Faculty" -> navController.navigate(Routes.facultyDetail(suggestion.id))
-                                "Subject" -> {}
-                                "Room" -> {}
+                                "Subject" -> navController.navigate(Routes.subjectForm(suggestion.id))
+                                "Room" -> navController.navigate(Routes.roomForm(suggestion.id))
                                 "Department" -> navController.navigate(Routes.departmentForm(suggestion.id))
                             }
                         }

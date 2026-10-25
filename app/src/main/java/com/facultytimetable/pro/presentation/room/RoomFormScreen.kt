@@ -95,8 +95,36 @@ fun RoomFormScreen(
                     value = state.building, onValueChange = viewModel::onBuildingChange,
                     label = { Text("Building") }, modifier = Modifier.fillMaxWidth(),
                     singleLine = true, shape = MaterialTheme.shapes.medium,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = state.floor, onValueChange = viewModel::onFloorChange,
+                    label = { Text("Floor") }, modifier = Modifier.fillMaxWidth(),
+                    singleLine = true, shape = MaterialTheme.shapes.medium,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Projector", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(
+                        checked = state.hasProjector,
+                        onCheckedChange = viewModel::onProjectorChange
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Air conditioning", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(
+                        checked = state.hasAC,
+                        onCheckedChange = viewModel::onACChange
+                    )
+                }
 
                 if (state.error != null) {
                     Spacer(modifier = Modifier.height(12.dp))

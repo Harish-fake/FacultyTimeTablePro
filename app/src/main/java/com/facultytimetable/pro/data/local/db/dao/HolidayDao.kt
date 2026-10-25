@@ -41,4 +41,7 @@ interface HolidayDao {
 
     @Query("SELECT COUNT(*) FROM holidays")
     suspend fun getCount(): Int
+
+    @Query("DELETE FROM holidays")
+    suspend fun deleteAll()
 }

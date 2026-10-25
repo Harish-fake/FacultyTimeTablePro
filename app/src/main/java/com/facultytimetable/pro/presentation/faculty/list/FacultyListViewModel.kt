@@ -16,7 +16,8 @@ import javax.inject.Inject
 data class FacultyListState(
     val faculty: List<FacultyEntity> = emptyList(),
     val searchQuery: String = "",
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val message: String? = null
 )
 
 @HiltViewModel
@@ -25,27 +26,35 @@ class FacultyListViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
+    private val message = MutableStateFlow<String?>(null)
 
     val state: StateFlow<FacultyListState> = combine(
         facultyRepository.getAllFaculty(),
-        searchQuery
-    ) { faculty, query ->
+        searchQuery,
+        message
+    ) { faculty, query, msg ->
         val filtered = if (query.isBlank()) faculty
         else faculty.filter {
             it.name.contains(query, ignoreCase = true) ||
             it.email.contains(query, ignoreCase = true) ||
             it.designation.contains(query, ignoreCase = true)
         }
-        FacultyListState(faculty = filtered, searchQuery = query, isLoading = false)
+        FacultyListState(faculty = filtered, searchQuery = query, isLoading = false, message = msg)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FacultyListState())
 
     fun onSearchQueryChange(query: String) {
         searchQuery.value = query
     }
 
+    fun consumeMessage() { message.value = null }
+
     fun deleteFaculty(faculty: FacultyEntity) {
         viewModelScope.launch {
-            facultyRepository.delete(faculty)
+            runCatching { facultyRepository.delete(faculty) }
+                .onSuccess { message.value = "${faculty.name} deleted" }
+                .onFailure {
+                    message.value = "Cannot delete ${faculty.name}: remove their timetable entries first."
+                }
         }
     }
 }

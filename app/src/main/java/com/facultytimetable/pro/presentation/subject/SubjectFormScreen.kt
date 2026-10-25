@@ -116,8 +116,37 @@ fun SubjectFormScreen(
                     value = state.hoursPerWeek, onValueChange = viewModel::onHoursChange,
                     label = { Text("Hours Per Week") }, modifier = Modifier.fillMaxWidth(),
                     singleLine = true, shape = MaterialTheme.shapes.medium,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next)
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Requires a lab room", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Labs are scheduled in consecutive periods.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = state.isLabRequired,
+                        onCheckedChange = viewModel::onLabRequiredChange
+                    )
+                }
+
+                if (state.isLabRequired) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = state.labHoursPerWeek, onValueChange = viewModel::onLabHoursChange,
+                        label = { Text("Lab Hours Per Week") }, modifier = Modifier.fillMaxWidth(),
+                        singleLine = true, shape = MaterialTheme.shapes.medium,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+                    )
+                }
 
                 if (state.error != null) {
                     Spacer(modifier = Modifier.height(12.dp))

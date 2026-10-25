@@ -14,4 +14,5 @@ interface SectionRepository {
     suspend fun delete(section: SectionEntity)
     suspend fun deleteById(id: Long)
     suspend fun getCount(): Int
+    fun getCountFlow(): Flow<Int>
 }

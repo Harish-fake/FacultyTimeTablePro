@@ -2,6 +2,7 @@ package com.facultytimetable.pro.presentation.room
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,8 +23,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,8 +58,17 @@ fun RoomListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<RoomEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(title = "Rooms & Labs", onBackClick = { navController.popBackStack() })
 
         if (state.isLoading) LoadingState()
@@ -78,10 +91,16 @@ fun RoomListScreen(
         AppFAB(onClick = { navController.navigate(Routes.roomForm()) })
     }
 
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
     showDeleteDialog?.let { room ->
         ConfirmDialog(
             title = "Delete Room",
-            message = "Are you sure you want to delete ${room.name}?",
+            message = "Delete ${room.name}? Timetable entries using this room will also be removed.",
             confirmText = "Delete",
             onConfirm = { viewModel.deleteRoom(room); showDeleteDialog = null },
             onDismiss = { showDeleteDialog = null },

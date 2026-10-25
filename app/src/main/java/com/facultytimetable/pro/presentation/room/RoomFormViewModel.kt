@@ -17,6 +17,9 @@ data class RoomFormState(
     val capacity: String = "60",
     val type: RoomType = RoomType.CLASSROOM,
     val building: String = "",
+    val floor: String = "",
+    val hasProjector: Boolean = true,
+    val hasAC: Boolean = false,
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val error: String? = null,
@@ -30,6 +33,7 @@ class RoomFormViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val roomId: Long? = savedStateHandle.get<Long>("roomId")?.takeIf { it > 0 }
+    private val existing = MutableStateFlow<RoomEntity?>(null)
     private val _state = MutableStateFlow(RoomFormState())
     val state: StateFlow<RoomFormState> = _state
 
@@ -38,11 +42,27 @@ class RoomFormViewModel @Inject constructor(
     private fun loadData() {
         if (roomId != null) {
             viewModelScope.launch {
-                val room = roomRepository.getRoomById(roomId)
-                if (room != null) {
+                try {
+                    val room = roomRepository.getRoomById(roomId)
+                    if (room != null) {
+                        existing.value = room
+                        _state.value = _state.value.copy(
+                            name = room.name,
+                            capacity = room.capacity.toString(),
+                            type = room.type,
+                            building = room.building,
+                            floor = room.floor,
+                            hasProjector = room.hasProjector,
+                            hasAC = room.hasAC,
+                            isLoading = false
+                        )
+                    } else {
+                        _state.value = _state.value.copy(isLoading = false)
+                    }
+                } catch (e: Exception) {
                     _state.value = _state.value.copy(
-                        name = room.name, capacity = room.capacity.toString(),
-                        type = room.type, building = room.building, isLoading = false
+                        isLoading = false,
+                        error = e.message ?: "Could not load room"
                     )
                 }
             }
@@ -52,23 +72,49 @@ class RoomFormViewModel @Inject constructor(
     }
 
     fun onNameChange(v: String) { _state.value = _state.value.copy(name = v, error = null) }
-    fun onCapacityChange(v: String) { _state.value = _state.value.copy(capacity = v) }
+    fun onCapacityChange(v: String) { _state.value = _state.value.copy(capacity = v.filter { it.isDigit() }) }
     fun onTypeChange(t: RoomType) { _state.value = _state.value.copy(type = t) }
     fun onBuildingChange(v: String) { _state.value = _state.value.copy(building = v) }
+    fun onFloorChange(v: String) { _state.value = _state.value.copy(floor = v) }
+    fun onProjectorChange(v: Boolean) { _state.value = _state.value.copy(hasProjector = v) }
+    fun onACChange(v: Boolean) { _state.value = _state.value.copy(hasAC = v) }
 
     fun save() {
         val s = _state.value
         if (s.name.isBlank()) { _state.value = s.copy(error = "Name is required"); return }
+        val capacity = s.capacity.toIntOrNull()
+        if (capacity == null || capacity !in 1..1000) {
+            _state.value = s.copy(error = "Capacity must be between 1 and 1000")
+            return
+        }
         viewModelScope.launch {
             _state.value = _state.value.copy(isSaving = true)
             try {
-                val entity = RoomEntity(
-                    id = roomId ?: 0, name = s.name,
-                    capacity = s.capacity.toIntOrNull() ?: 60,
-                    type = s.type, building = s.building
-                )
-                if (roomId != null) roomRepository.update(entity)
-                else roomRepository.insert(entity)
+                val base = existing.value
+                val entity = if (base == null) {
+                    RoomEntity(
+                        name = s.name.trim(),
+                        capacity = capacity,
+                        type = s.type,
+                        building = s.building.trim(),
+                        floor = s.floor.trim(),
+                        hasProjector = s.hasProjector,
+                        hasAC = s.hasAC
+                    )
+                } else {
+                    base.copy(
+                        name = s.name.trim(),
+                        capacity = capacity,
+                        type = s.type,
+                        building = s.building.trim(),
+                        floor = s.floor.trim(),
+                        hasProjector = s.hasProjector,
+                        hasAC = s.hasAC,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                }
+                if (base == null) roomRepository.insert(entity)
+                else roomRepository.update(entity)
                 _state.value = _state.value.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isSaving = false, error = e.message ?: "Save failed")

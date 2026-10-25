@@ -1,93 +1,97 @@
 package com.facultytimetable.pro.presentation.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
     primary = Blue40,
-    onPrimary = androidx.compose.ui.graphics.Color.White,
+    onPrimary = Color.White,
     primaryContainer = Blue90,
     onPrimaryContainer = Blue10,
     secondary = Teal40,
-    onSecondary = androidx.compose.ui.graphics.Color.White,
+    onSecondary = Color.White,
     secondaryContainer = Teal90,
-    onSecondaryContainer = androidx.compose.ui.graphics.Color(0xFF002020),
+    onSecondaryContainer = Teal10,
     tertiary = Orange40,
-    onTertiary = androidx.compose.ui.graphics.Color.White,
+    onTertiary = Color.White,
     tertiaryContainer = Orange90,
-    onTertiaryContainer = androidx.compose.ui.graphics.Color(0xFF2E0500),
+    onTertiaryContainer = Color(0xFF3B1D00),
     error = Red40,
-    onError = androidx.compose.ui.graphics.Color.White,
+    onError = Color.White,
     errorContainer = Red90,
-    onErrorContainer = androidx.compose.ui.graphics.Color(0xFF410002),
+    onErrorContainer = Color(0xFF450A0A),
     background = SurfaceLight,
     onBackground = OnSurfaceLight,
-    surface = androidx.compose.ui.graphics.Color.White,
+    surface = SurfaceContainerLight,
     onSurface = OnSurfaceLight,
-    surfaceVariant = androidx.compose.ui.graphics.Color(0xFFE7E0EC),
-    onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF49454F),
-    outline = androidx.compose.ui.graphics.Color(0xFF79747E)
+    surfaceVariant = Color(0xFFEEF2F7),
+    onSurfaceVariant = OnSurfaceVariantLight,
+    surfaceTint = Blue40,
+    outline = OutlineLight,
+    outlineVariant = Color(0xFFE2E8F0),
+    inverseSurface = Color(0xFF1E293B),
+    inverseOnSurface = Color(0xFFF8FAFC),
+    inversePrimary = Blue80,
+    scrim = Color(0xFF020617)
 )
 
 private val DarkColorScheme = darkColorScheme(
     primary = Blue80,
-    onPrimary = Blue20,
-    primaryContainer = Blue30,
-    onPrimaryContainer = Blue90,
+    onPrimary = Color(0xFF082F6B),
+    primaryContainer = Color(0xFF1E3A8A),
+    onPrimaryContainer = Color(0xFFDBEAFE),
     secondary = Teal80,
-    onSecondary = androidx.compose.ui.graphics.Color(0xFF003737),
-    secondaryContainer = Teal40,
-    onSecondaryContainer = Teal90,
+    onSecondary = Color(0xFF042F2E),
+    secondaryContainer = Color(0xFF115E59),
+    onSecondaryContainer = Color(0xFFCCFBF1),
     tertiary = Orange80,
-    onTertiary = androidx.compose.ui.graphics.Color(0xFF4E1500),
-    tertiaryContainer = Orange40,
-    onTertiaryContainer = Orange90,
+    onTertiary = Color(0xFF3B1D00),
+    tertiaryContainer = Color(0xFF92400E),
+    onTertiaryContainer = Color(0xFFFEF3C7),
     error = Red80,
-    onError = androidx.compose.ui.graphics.Color(0xFF601410),
-    errorContainer = Red40,
-    onErrorContainer = Red90,
+    onError = Color(0xFF450A0A),
+    errorContainer = Color(0xFF7F1D1D),
+    onErrorContainer = Color(0xFFFEE2E2),
     background = SurfaceDark,
     onBackground = OnSurfaceDark,
-    surface = androidx.compose.ui.graphics.Color(0xFF1E1E1E),
+    surface = SurfaceContainerDark,
     onSurface = OnSurfaceDark,
-    surfaceVariant = androidx.compose.ui.graphics.Color(0xFF49454F),
-    onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFCAC4D0),
-    outline = androidx.compose.ui.graphics.Color(0xFF938F99)
+    surfaceVariant = Color(0xFF1C2940),
+    onSurfaceVariant = OnSurfaceVariantDark,
+    surfaceTint = Blue80,
+    outline = OutlineDark,
+    outlineVariant = Color(0xFF243147),
+    inverseSurface = Color(0xFFE2E8F0),
+    inverseOnSurface = Color(0xFF0F172A),
+    inversePrimary = Blue20,
+    scrim = Color.Black
 )
 
+/**
+ * App theme. Dynamic colour is intentionally disabled so the product keeps a consistent
+ * brand identity and timetable subject colours stay meaningful on every device.
+ */
 @Composable
 fun FacultyTimeTableTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.surface.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

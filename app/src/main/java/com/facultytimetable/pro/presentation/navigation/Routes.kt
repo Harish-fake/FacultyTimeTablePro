@@ -19,6 +19,7 @@ object Routes {
     const val ACADEMIC_YEAR_FORM = "academic_year/form?yearId={yearId}"
     const val TIME_SLOT_CONFIG = "timeslot/config"
     const val HOLIDAY_LIST = "holiday/list"
+    const val ACADEMIC_CALENDAR = "academic/calendar"
     const val TIMETABLE_GRID = "timetable/grid"
     const val TIMETABLE_DAILY = "timetable/daily/{day}"
     const val TIMETABLE_FACULTY = "timetable/faculty/{facultyId}"
@@ -31,6 +32,7 @@ object Routes {
     const val REPORTS = "reports"
     const val BACKUP = "backup"
     const val SETTINGS = "settings"
+    const val MORE = "more"
     const val APP_LOCK = "security/lock"
 
     fun facultyDetail(id: Long) = "faculty/detail/$id"

@@ -41,4 +41,10 @@ interface SectionDao {
 
     @Query("SELECT COUNT(*) FROM sections")
     suspend fun getCount(): Int
+
+    @Query("SELECT COUNT(*) FROM sections")
+    fun getCountFlow(): Flow<Int>
+
+    @Query("DELETE FROM sections")
+    suspend fun deleteAll()
 }

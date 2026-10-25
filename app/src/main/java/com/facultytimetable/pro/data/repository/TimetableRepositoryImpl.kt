@@ -42,6 +42,8 @@ class TimetableRepositoryImpl @Inject constructor(
 
     override suspend fun insertAll(entries: List<TimetableEntryEntity>) = timetableEntryDao.insertAll(entries)
 
+    override suspend fun replaceAll(entries: List<TimetableEntryEntity>) = timetableEntryDao.replaceAll(entries)
+
     override suspend fun update(entry: TimetableEntryEntity) = timetableEntryDao.update(entry)
 
     override suspend fun delete(entry: TimetableEntryEntity) = timetableEntryDao.delete(entry)

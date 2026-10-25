@@ -41,4 +41,7 @@ interface AcademicYearDao {
 
     @Query("SELECT COUNT(*) FROM academic_years")
     suspend fun getCount(): Int
+
+    @Query("DELETE FROM academic_years")
+    suspend fun deleteAll()
 }

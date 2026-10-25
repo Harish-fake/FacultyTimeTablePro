@@ -50,4 +50,7 @@ interface SubjectDao {
 
     @Query("SELECT * FROM subjects WHERE name LIKE '%' || :query || '%' OR code LIKE '%' || :query || '%'")
     fun searchSubjects(query: String): Flow<List<SubjectEntity>>
+
+    @Query("DELETE FROM subjects")
+    suspend fun deleteAll()
 }

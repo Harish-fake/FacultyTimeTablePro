@@ -2,6 +2,7 @@ package com.facultytimetable.pro.presentation.subject
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,8 +22,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,8 +59,17 @@ fun SubjectListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<SubjectEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(title = "Subjects", onBackClick = { navController.popBackStack() })
 
         if (state.isLoading) LoadingState()
@@ -80,10 +93,16 @@ fun SubjectListScreen(
         AppFAB(onClick = { navController.navigate(Routes.subjectForm()) })
     }
 
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
     showDeleteDialog?.let { subject ->
         ConfirmDialog(
             title = "Delete Subject",
-            message = "Are you sure you want to delete ${subject.name} (${subject.code})?",
+            message = "Delete ${subject.name} (${subject.code})? Its timetable entries will also be removed.",
             confirmText = "Delete",
             onConfirm = { viewModel.deleteSubject(subject); showDeleteDialog = null },
             onDismiss = { showDeleteDialog = null },

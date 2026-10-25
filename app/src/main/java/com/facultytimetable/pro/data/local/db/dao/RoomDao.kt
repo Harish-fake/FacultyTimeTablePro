@@ -54,4 +54,7 @@ interface RoomDao {
 
     @Query("SELECT * FROM rooms WHERE name LIKE '%' || :query || '%' OR building LIKE '%' || :query || '%'")
     fun searchRooms(query: String): Flow<List<RoomEntity>>
+
+    @Query("DELETE FROM rooms")
+    suspend fun deleteAll()
 }

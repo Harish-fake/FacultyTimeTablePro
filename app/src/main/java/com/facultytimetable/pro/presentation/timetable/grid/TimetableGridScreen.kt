@@ -1,307 +1,321 @@
 package com.facultytimetable.pro.presentation.timetable.grid
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.facultytimetable.pro.data.local.db.entity.SectionEntity
-import com.facultytimetable.pro.data.local.db.entity.SlotType
-import com.facultytimetable.pro.data.local.db.entity.SubjectType
 import com.facultytimetable.pro.data.local.db.entity.TimetableEntryEntity
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.EmptyState
+import com.facultytimetable.pro.presentation.common.components.InfoRow
 import com.facultytimetable.pro.presentation.common.components.LoadingState
+import com.facultytimetable.pro.presentation.common.subjectColor
 import com.facultytimetable.pro.presentation.navigation.Routes
-import com.facultytimetable.pro.presentation.theme.SubjectBreak
-import com.facultytimetable.pro.presentation.theme.SubjectLab
-import com.facultytimetable.pro.presentation.theme.SubjectLunch
-import com.facultytimetable.pro.presentation.theme.SubjectProject
-import com.facultytimetable.pro.presentation.theme.SubjectSeminar
-import com.facultytimetable.pro.presentation.theme.SubjectSports
-import com.facultytimetable.pro.presentation.theme.SubjectLibrary
-import com.facultytimetable.pro.presentation.theme.SubjectTheory
+import com.facultytimetable.pro.presentation.timetable.common.DaySelector
+import com.facultytimetable.pro.presentation.timetable.common.PeriodRow
+import com.facultytimetable.pro.presentation.timetable.common.dayShortNames
+import java.util.Calendar
 
-private val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri")
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimetableGridScreen(
     navController: NavController,
+    initialSectionId: Long? = null,
+    showBack: Boolean = false,
     viewModel: TimetableGridViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    var showMenu by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    var selectedDay by rememberSaveable { mutableStateOf(todayIsoDay()) }
+    var detailEntry by remember { mutableStateOf<TimetableEntryEntity?>(null) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(
-            title = "Timetable",
-            actions = {
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+    LaunchedEffect(initialSectionId, state.isLoading) {
+        if (!state.isLoading && initialSectionId != null) {
+            viewModel.selectSectionById(initialSectionId)
+        }
+    }
+
+    LaunchedEffect(state.days) {
+        if (state.days.isNotEmpty() && selectedDay !in state.days) {
+            selectedDay = state.days.first()
+        }
+    }
+
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            AppTopBar(
+                title = "Timetable",
+                subtitle = state.selectedSection?.name ?: "Weekly schedule",
+                onBackClick = if (showBack) ({ navController.popBackStack() }) else null,
+                actions = {
+                    IconButton(onClick = { navController.navigate(Routes.TIMETABLE_GENERATOR) }) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Generate timetable")
                     }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(text = { Text("Auto Generate") }, onClick = {
-                            showMenu = false
-                            navController.navigate(Routes.TIMETABLE_GENERATOR)
-                        }, leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) })
-                        DropdownMenuItem(text = { Text("Department View") }, onClick = { showMenu = false })
-                        DropdownMenuItem(text = { Text("Room View") }, onClick = { showMenu = false })
+                }
+            )
+
+            when {
+                state.isLoading -> LoadingState()
+
+                state.sections.isEmpty() -> EmptyState(
+                    title = "No sections yet",
+                    message = "Add a section, subjects, faculty and rooms, then generate a timetable.",
+                    actionLabel = "Add section",
+                    onAction = { navController.navigate(Routes.sectionForm()) }
+                )
+
+                else -> {
+                    SectionChips(
+                        state = state,
+                        onSelect = viewModel::selectSection,
+                        onAddSection = { navController.navigate(Routes.sectionForm()) }
+                    )
+
+                    SummaryStrip(state)
+
+                    DaySelector(
+                        selectedDay = selectedDay,
+                        onDaySelected = { selectedDay = it },
+                        days = state.days.ifEmpty { listOf(1, 2, 3, 4, 5) },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    val daySlots = state.timeSlots
+                        .filter { it.dayOfWeek == selectedDay }
+                        .sortedBy { it.periodNumber }
+
+                    if (daySlots.isEmpty()) {
+                        EmptyState(
+                            title = "No periods configured",
+                            message = "Add time slots for ${dayShortNames.getOrElse(selectedDay - 1) { "this day" }}.",
+                            actionLabel = "Configure time slots",
+                            onAction = { navController.navigate(Routes.TIME_SLOT_CONFIG) }
+                        )
+                    } else if (state.entries.isEmpty()) {
+                        EmptyState(
+                            title = "Timetable is empty",
+                            message = "Generate the weekly timetable to fill ${state.selectedSection?.name ?: "this section"}.",
+                            actionLabel = "Generate timetable",
+                            onAction = { navController.navigate(Routes.TIMETABLE_GENERATOR) }
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp)
+                        ) {
+                            items(daySlots, key = { it.id }) { slot ->
+                                val entry = state.entries.firstOrNull { it.timeSlotId == slot.id }
+                                PeriodRow(
+                                    slot = slot,
+                                    entry = entry,
+                                    subject = entry?.let { state.subjects[it.subjectId] },
+                                    faculty = entry?.let { state.facultyMap[it.facultyId] },
+                                    room = entry?.let { state.rooms[it.roomId] },
+                                    onClick = entry?.let { { detailEntry = entry } }
+                                )
+                            }
+                        }
                     }
                 }
             }
-        )
-
-        if (state.isLoading) {
-            LoadingState()
-        } else if (state.sections.isEmpty()) {
-            EmptyState(title = "No Data", message = "Add sections, faculty, subjects, and rooms to create a timetable. Go to Settings or use the generator.")
-        } else {
-            SectionSelector(
-                sections = state.sections,
-                selectedSection = state.selectedSection,
-                onSectionSelected = viewModel::selectSection
-            )
-
-            if (state.entries.isEmpty()) {
-                EmptyState(
-                    title = "Empty Timetable",
-                    message = state.selectedSection?.let {
-                        "No entries for ${it.name}. Use Auto Generate to create one."
-                    } ?: "Select a section to view"
-                )
-            } else {
-                WeeklyGrid(
-                    state = state
-                )
-            }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
+    detailEntry?.let { entry ->
+        EntryDetailDialog(
+            entry = entry,
+            state = state,
+            onDismiss = { detailEntry = null },
+            onDelete = {
+                viewModel.deleteEntry(entry)
+                detailEntry = null
+            }
+        )
     }
 }
 
 @Composable
-private fun SectionSelector(
-    sections: List<SectionEntity>,
-    selectedSection: SectionEntity?,
-    onSectionSelected: (SectionEntity) -> Unit
+private fun SectionChips(
+    state: TimetableGridState,
+    onSelect: (com.facultytimetable.pro.data.local.db.entity.SectionEntity) -> Unit,
+    onAddSection: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .horizontalScroll(rememberScrollState()),
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        state.sections.forEach { section ->
+            FilterChip(
+                selected = state.selectedSection?.id == section.id,
+                onClick = { onSelect(section) },
+                label = { Text(section.name) }
+            )
+        }
+        OutlinedButton(
+            onClick = onAddSection,
+            shape = MaterialTheme.shapes.small,
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("Section", style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@Composable
+private fun SummaryStrip(state: TimetableGridState) {
+    val regularPerWeek = state.timeSlots.count { it.type.name == "REGULAR" }
+    val free = (regularPerWeek - state.weeklyPeriods).coerceAtLeast(0)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        sections.forEach { section ->
-            val isSelected = section.id == selectedSection?.id
-            Card(
-                onClick = { onSectionSelected(section) },
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Text(
-                    text = section.name,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        SummaryPill("${state.weeklyPeriods}", "periods", Modifier.weight(1f))
+        SummaryPill("${state.labPeriods}", "labs", Modifier.weight(1f))
+        SummaryPill("$free", "free", Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun SummaryPill(value: String, label: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
-private fun WeeklyGrid(
-    state: TimetableGridState
+private fun EntryDetailDialog(
+    entry: TimetableEntryEntity,
+    state: TimetableGridState,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    val groupedByDay = state.timeSlots.groupBy { it.dayOfWeek }
-    val days = groupedByDay.keys.sorted().take(5)
-    val maxPeriods = groupedByDay.values.maxOfOrNull { it.size } ?: 8
+    val subject = state.subjects[entry.subjectId]
+    val faculty = state.facultyMap[entry.facultyId]
+    val room = state.rooms[entry.roomId]
+    val slot = state.timeSlots.firstOrNull { it.id == entry.timeSlotId }
+    val color = subjectColor(subject?.type?.name ?: "THEORY")
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 8.dp)
-    ) {
-        item {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Spacer(modifier = Modifier.width(48.dp))
-                days.forEach { day ->
-                    Text(
-                        text = dayLabels.getOrElse(day - 1) { "Day$day" },
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        }
-
-        items((1..maxPeriods).toList()) { period ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-            ) {
-                Text(
-                    text = "P$period",
-                    modifier = Modifier
-                        .width(48.dp)
-                        .padding(end = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = color) },
+        title = { Text(subject?.name ?: "Class period") },
+        text = {
+            Column {
+                InfoRow("Code", subject?.code.orEmpty())
+                InfoRow("Type", subject?.type?.name ?: "—")
+                InfoRow("Faculty", faculty?.name.orEmpty())
+                InfoRow("Room", room?.name.orEmpty())
+                InfoRow("Day", dayShortNames.getOrElse(entry.dayOfWeek - 1) { "Day ${entry.dayOfWeek}" })
+                InfoRow(
+                    "Time",
+                    slot?.let { "P${it.periodNumber} · ${it.startTime}–${it.endTime}" } ?: "—"
                 )
-
-                days.forEach { day ->
-                    val entry = state.entries.find {
-                        val daySlots = groupedByDay[day] ?: emptyList()
-                        val slot = daySlots.getOrNull(period - 1)
-                        it.dayOfWeek == day && slot != null && it.timeSlotId == slot.id
-                    }
-                    val timeSlot = groupedByDay[day]?.getOrNull(period - 1)
-
-                    if (timeSlot?.type == SlotType.LUNCH) {
-                        GridCell(
-                            label = "Lunch",
-                            color = SubjectLunch,
-                            isSpecial = true
-                        )
-                    } else if (timeSlot?.type == SlotType.BREAK) {
-                        GridCell(
-                            label = "Break",
-                            color = SubjectBreak,
-                            isSpecial = true
-                        )
-                    } else if (entry != null) {
-                        val resolved = state.subjects[entry.subjectId]
-                        val faculty = state.facultyMap[entry.facultyId]
-                        val subjType = resolved?.type ?: SubjectType.THEORY
-                        val color = when (subjType) {
-                            SubjectType.LAB -> SubjectLab
-                            SubjectType.PROJECT -> SubjectProject
-                            SubjectType.SEMINAR -> SubjectSeminar
-                            SubjectType.LIBRARY -> SubjectLibrary
-                            SubjectType.SPORTS -> SubjectSports
-                            else -> SubjectTheory
-                        }
-                        GridCell(
-                            label = resolved?.name ?: "Subject",
-                            subtitle = faculty?.name ?: "",
-                            color = color,
-                            onClick = { }
-                        )
-                    } else {
-                        GridCell(
-                            label = "",
-                            color = Color.Transparent,
-                            isEmpty = true
-                        )
-                    }
-                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    "This period belongs to ${state.selectedSection?.name ?: "the selected section"}.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+        },
+        confirmButton = {
+            TextButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Remove period", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) { Text("Close") }
         }
-    }
+    )
 }
 
-@Composable
-private fun RowScope.GridCell(
-    label: String,
-    color: Color,
-    subtitle: String = "",
-    isSpecial: Boolean = false,
-    isEmpty: Boolean = false,
-    onClick: (() -> Unit)? = null
-) {
-    Box(
-        modifier = Modifier
-            .weight(1f)
-            .padding(2.dp)
-            .height(68.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .then(
-                if (isSpecial) Modifier.background(color.copy(alpha = 0.2f))
-                else if (!isEmpty) Modifier.background(color.copy(alpha = 0.15f))
-                else Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            )
-            .then(
-                if (!isEmpty && !isSpecial) Modifier.border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
-                else Modifier
-            )
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(4.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        if (!isEmpty) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                    fontWeight = FontWeight.Medium,
-                    color = color,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-                if (subtitle.isNotBlank()) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp),
-                        color = color.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
+private fun todayIsoDay(): Int {
+    val value = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
+    return if (value == Calendar.SUNDAY) 7 else value - 1
 }

@@ -53,4 +53,7 @@ interface FacultyDao {
 
     @Query("SELECT * FROM faculty WHERE name LIKE '%' || :query || '%' OR email LIKE '%' || :query || '%' OR designation LIKE '%' || :query || '%'")
     fun searchFaculty(query: String): Flow<List<FacultyEntity>>
+
+    @Query("DELETE FROM faculty")
+    suspend fun deleteAll()
 }

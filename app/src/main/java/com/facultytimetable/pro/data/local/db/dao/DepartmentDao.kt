@@ -47,4 +47,7 @@ interface DepartmentDao {
 
     @Query("SELECT * FROM departments WHERE name LIKE '%' || :query || '%' OR code LIKE '%' || :query || '%'")
     fun searchDepartments(query: String): Flow<List<DepartmentEntity>>
+
+    @Query("DELETE FROM departments")
+    suspend fun deleteAll()
 }

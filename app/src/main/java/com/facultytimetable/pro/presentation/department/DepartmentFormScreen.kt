@@ -55,6 +55,7 @@ class DepartmentFormViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val departmentId: Long? = savedStateHandle.get<Long>("departmentId")?.takeIf { it > 0 }
+    private val existing = MutableStateFlow<DepartmentEntity?>(null)
     private val _state = MutableStateFlow(DepartmentFormState())
     val state: StateFlow<DepartmentFormState> = _state
 
@@ -65,6 +66,7 @@ class DepartmentFormViewModel @Inject constructor(
             if (departmentId != null) {
                 val dept = departmentRepository.getDepartmentById(departmentId)
                 if (dept != null) {
+                    existing.value = dept
                     _state.value = _state.value.copy(
                         name = dept.name, code = dept.code,
                         headName = dept.headName, description = dept.description,
@@ -78,7 +80,7 @@ class DepartmentFormViewModel @Inject constructor(
     }
 
     fun onNameChange(v: String) { _state.value = _state.value.copy(name = v, error = null) }
-    fun onCodeChange(v: String) { _state.value = _state.value.copy(code = v) }
+    fun onCodeChange(v: String) { _state.value = _state.value.copy(code = v, error = null) }
     fun onHeadNameChange(v: String) { _state.value = _state.value.copy(headName = v) }
     fun onDescriptionChange(v: String) { _state.value = _state.value.copy(description = v) }
 
@@ -89,12 +91,34 @@ class DepartmentFormViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isSaving = true)
             try {
-                val entity = DepartmentEntity(
-                    id = departmentId ?: 0, name = s.name, code = s.code.uppercase(),
-                    headName = s.headName, description = s.description
-                )
-                if (departmentId != null) departmentRepository.update(entity)
-                else departmentRepository.insert(entity)
+                val normalizedCode = s.code.trim().uppercase()
+                val duplicate = departmentRepository.getDepartmentByCode(normalizedCode)
+                if (duplicate != null && duplicate.id != departmentId) {
+                    _state.value = _state.value.copy(
+                        isSaving = false,
+                        error = "Department code $normalizedCode is already in use"
+                    )
+                    return@launch
+                }
+                val base = existing.value
+                val entity = if (base == null) {
+                    DepartmentEntity(
+                        name = s.name.trim(),
+                        code = normalizedCode,
+                        headName = s.headName.trim(),
+                        description = s.description.trim()
+                    )
+                } else {
+                    base.copy(
+                        name = s.name.trim(),
+                        code = normalizedCode,
+                        headName = s.headName.trim(),
+                        description = s.description.trim(),
+                        updatedAt = System.currentTimeMillis()
+                    )
+                }
+                if (base == null) departmentRepository.insert(entity)
+                else departmentRepository.update(entity)
                 _state.value = _state.value.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isSaving = false, error = e.message ?: "Save failed")

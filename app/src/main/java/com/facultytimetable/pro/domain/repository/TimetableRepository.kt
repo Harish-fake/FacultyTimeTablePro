@@ -19,6 +19,7 @@ interface TimetableRepository {
     fun getEntryCountByRoom(roomId: Long): Flow<Int>
     suspend fun insert(entry: TimetableEntryEntity): Long
     suspend fun insertAll(entries: List<TimetableEntryEntity>)
+    suspend fun replaceAll(entries: List<TimetableEntryEntity>)
     suspend fun update(entry: TimetableEntryEntity)
     suspend fun delete(entry: TimetableEntryEntity)
     suspend fun deleteById(id: Long)

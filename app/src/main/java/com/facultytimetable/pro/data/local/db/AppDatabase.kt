@@ -3,6 +3,8 @@ package com.facultytimetable.pro.data.local.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.facultytimetable.pro.data.local.db.converter.Converters
 import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
 import com.facultytimetable.pro.data.local.db.dao.AuditLogDao
@@ -53,7 +55,7 @@ import com.facultytimetable.pro.data.local.db.entity.UserPreferenceEntity
         BackupHistoryEntity::class,
         AuditLogEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -77,5 +79,27 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "faculty_timetable_pro.db"
+
+        /**
+         * v2 adds the section's owning department and a database-level guarantee that a
+         * section can never be double-booked in the same period.
+         */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sections ADD COLUMN departmentId INTEGER NOT NULL DEFAULT 0")
+
+                // Clean up any historical duplicate rows before adding the unique index.
+                db.execSQL(
+                    "DELETE FROM timetable_entries WHERE id NOT IN (" +
+                        "SELECT MIN(id) FROM timetable_entries " +
+                        "GROUP BY sectionId, dayOfWeek, timeSlotId)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_timetable_entries_sectionId_timeSlotId_dayOfWeek " +
+                        "ON timetable_entries (sectionId, timeSlotId, dayOfWeek)"
+                )
+            }
+        }
     }
 }

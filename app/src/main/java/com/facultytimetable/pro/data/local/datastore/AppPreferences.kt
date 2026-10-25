@@ -23,89 +23,46 @@ class AppPreferences @Inject constructor(
 ) {
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
-        val LANGUAGE = stringPreferencesKey("language")
-        val FONT_SCALE = intPreferencesKey("font_scale")
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
-        val APP_PIN = stringPreferencesKey("app_pin")
-        val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
+        val PIN_HASH = stringPreferencesKey("pin_hash")
+        val PIN_SALT = stringPreferencesKey("pin_salt")
         val CURRENT_ACADEMIC_YEAR_ID = longPreferencesKey("current_academic_year_id")
         val CURRENT_SEMESTER_ID = longPreferencesKey("current_semester_id")
-        val WORKING_DAYS = stringPreferencesKey("working_days")
-        val FIRST_LAUNCH = booleanPreferencesKey("first_launch")
-        val LAST_BACKUP_REMINDER = longPreferencesKey("last_backup_reminder")
+        val LAST_BACKUP_AT = longPreferencesKey("last_backup_at")
         val BACKUP_REMINDER_INTERVAL = intPreferencesKey("backup_reminder_interval")
     }
 
-    val themeMode: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[Keys.THEME_MODE] ?: "system"
-    }
-
-    val language: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[Keys.LANGUAGE] ?: "en"
-    }
-
-    val fontScale: Flow<Int> = context.dataStore.data.map { prefs ->
-        prefs[Keys.FONT_SCALE] ?: 100
-    }
-
-    val isAppLockEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[Keys.APP_LOCK_ENABLED] ?: false
-    }
-
-    val appPin: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[Keys.APP_PIN] ?: ""
-    }
-
-    val isBiometricEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[Keys.BIOMETRIC_ENABLED] ?: false
-    }
-
-    val currentAcademicYearId: Flow<Long> = context.dataStore.data.map { prefs ->
-        prefs[Keys.CURRENT_ACADEMIC_YEAR_ID] ?: -1L
-    }
-
-    val currentSemesterId: Flow<Long> = context.dataStore.data.map { prefs ->
-        prefs[Keys.CURRENT_SEMESTER_ID] ?: -1L
-    }
-
-    val workingDays: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[Keys.WORKING_DAYS] ?: "1,2,3,4,5"
-    }
-
-    val isFirstLaunch: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[Keys.FIRST_LAUNCH] ?: true
-    }
-
-    val lastBackupReminder: Flow<Long> = context.dataStore.data.map { prefs ->
-        prefs[Keys.LAST_BACKUP_REMINDER] ?: 0L
-    }
-
-    val backupReminderInterval: Flow<Int> = context.dataStore.data.map { prefs ->
-        prefs[Keys.BACKUP_REMINDER_INTERVAL] ?: 7
-    }
+    val themeMode: Flow<String> = context.dataStore.data.map { it[Keys.THEME_MODE] ?: "system" }
+    val isAppLockEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.APP_LOCK_ENABLED] ?: false }
+    val pinHash: Flow<String> = context.dataStore.data.map { it[Keys.PIN_HASH] ?: "" }
+    val pinSalt: Flow<String> = context.dataStore.data.map { it[Keys.PIN_SALT] ?: "" }
+    val currentAcademicYearId: Flow<Long> = context.dataStore.data.map { it[Keys.CURRENT_ACADEMIC_YEAR_ID] ?: -1L }
+    val currentSemesterId: Flow<Long> = context.dataStore.data.map { it[Keys.CURRENT_SEMESTER_ID] ?: -1L }
+    val lastBackupAt: Flow<Long> = context.dataStore.data.map { it[Keys.LAST_BACKUP_AT] ?: 0L }
+    val backupReminderInterval: Flow<Int> = context.dataStore.data.map { it[Keys.BACKUP_REMINDER_INTERVAL] ?: 7 }
 
     suspend fun setThemeMode(mode: String) {
+        require(mode in setOf("system", "light", "dark")) { "Unsupported theme mode: $mode" }
         context.dataStore.edit { it[Keys.THEME_MODE] = mode }
-    }
-
-    suspend fun setLanguage(lang: String) {
-        context.dataStore.edit { it[Keys.LANGUAGE] = lang }
-    }
-
-    suspend fun setFontScale(scale: Int) {
-        context.dataStore.edit { it[Keys.FONT_SCALE] = scale }
     }
 
     suspend fun setAppLockEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.APP_LOCK_ENABLED] = enabled }
     }
 
-    suspend fun setAppPin(pin: String) {
-        context.dataStore.edit { it[Keys.APP_PIN] = pin }
+    suspend fun setPin(hash: String, salt: String) {
+        context.dataStore.edit {
+            it[Keys.PIN_HASH] = hash
+            it[Keys.PIN_SALT] = salt
+        }
     }
 
-    suspend fun setBiometricEnabled(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.BIOMETRIC_ENABLED] = enabled }
+    suspend fun clearPin() {
+        context.dataStore.edit {
+            it.remove(Keys.PIN_HASH)
+            it.remove(Keys.PIN_SALT)
+            it[Keys.APP_LOCK_ENABLED] = false
+        }
     }
 
     suspend fun setCurrentAcademicYearId(id: Long) {
@@ -116,23 +73,11 @@ class AppPreferences @Inject constructor(
         context.dataStore.edit { it[Keys.CURRENT_SEMESTER_ID] = id }
     }
 
-    suspend fun setWorkingDays(days: String) {
-        context.dataStore.edit { it[Keys.WORKING_DAYS] = days }
-    }
-
-    suspend fun setFirstLaunch(value: Boolean) {
-        context.dataStore.edit { it[Keys.FIRST_LAUNCH] = value }
-    }
-
-    suspend fun setLastBackupReminder(time: Long) {
-        context.dataStore.edit { it[Keys.LAST_BACKUP_REMINDER] = time }
+    suspend fun setLastBackupAt(time: Long) {
+        context.dataStore.edit { it[Keys.LAST_BACKUP_AT] = time }
     }
 
     suspend fun setBackupReminderInterval(days: Int) {
-        context.dataStore.edit { it[Keys.BACKUP_REMINDER_INTERVAL] = days }
-    }
-
-    suspend fun clearAll() {
-        context.dataStore.edit { it.clear() }
+        context.dataStore.edit { it[Keys.BACKUP_REMINDER_INTERVAL] = days.coerceAtLeast(1) }
     }
 }

@@ -2,6 +2,7 @@ package com.facultytimetable.pro.presentation.department
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,8 +22,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,8 +56,17 @@ fun DepartmentListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<DepartmentEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
             title = "Departments",
             onBackClick = { navController.popBackStack() }
@@ -93,10 +106,16 @@ fun DepartmentListScreen(
         AppFAB(onClick = { navController.navigate(Routes.departmentForm()) })
     }
 
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
     showDeleteDialog?.let { dept ->
         ConfirmDialog(
             title = "Delete Department",
-            message = "Delete ${dept.name}? Existing faculty and subjects in this department will be preserved.",
+            message = "Delete ${dept.name}? A department can only be deleted when it has no faculty or subjects.",
             confirmText = "Delete",
             onConfirm = {
                 viewModel.deleteDepartment(dept)

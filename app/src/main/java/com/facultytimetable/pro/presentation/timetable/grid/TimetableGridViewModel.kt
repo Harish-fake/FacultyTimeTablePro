@@ -6,30 +6,22 @@ import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
 import com.facultytimetable.pro.data.local.db.entity.RoomEntity
 import com.facultytimetable.pro.data.local.db.entity.SectionEntity
 import com.facultytimetable.pro.data.local.db.entity.SubjectEntity
-import com.facultytimetable.pro.data.local.db.entity.SubjectType
 import com.facultytimetable.pro.data.local.db.entity.TimeSlotEntity
 import com.facultytimetable.pro.data.local.db.entity.TimetableEntryEntity
 import com.facultytimetable.pro.domain.repository.FacultyRepository
 import com.facultytimetable.pro.domain.repository.RoomRepository
 import com.facultytimetable.pro.domain.repository.SectionRepository
 import com.facultytimetable.pro.domain.repository.SubjectRepository
-import com.facultytimetable.pro.domain.repository.TimetableRepository
 import com.facultytimetable.pro.domain.repository.TimeSlotRepository
-import com.facultytimetable.pro.presentation.theme.SubjectBreak
-import com.facultytimetable.pro.presentation.theme.SubjectLab
-import com.facultytimetable.pro.presentation.theme.SubjectLunch
-import com.facultytimetable.pro.presentation.theme.SubjectProject
-import com.facultytimetable.pro.presentation.theme.SubjectSeminar
-import com.facultytimetable.pro.presentation.theme.SubjectSports
-import com.facultytimetable.pro.presentation.theme.SubjectLibrary
-import com.facultytimetable.pro.presentation.theme.SubjectTheory
+import com.facultytimetable.pro.domain.repository.TimetableRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import androidx.compose.ui.graphics.Color
 
 data class TimetableGridState(
     val sections: List<SectionEntity> = emptyList(),
@@ -39,18 +31,16 @@ data class TimetableGridState(
     val subjects: Map<Long, SubjectEntity> = emptyMap(),
     val facultyMap: Map<Long, FacultyEntity> = emptyMap(),
     val rooms: Map<Long, RoomEntity> = emptyMap(),
-    val isLoading: Boolean = true
-)
+    val isLoading: Boolean = true,
+    val message: String? = null
+) {
+    val dailySlots: List<TimeSlotEntity>
+        get() = timeSlots.distinctBy { it.periodNumber }.sortedBy { it.periodNumber }
 
-data class ResolvedTimetableEntry(
-    val entry: TimetableEntryEntity,
-    val subjectName: String,
-    val subjectCode: String,
-    val subjectType: SubjectType,
-    val facultyName: String,
-    val roomName: String,
-    val color: Color
-)
+    val weeklyPeriods: Int get() = entries.size
+    val labPeriods: Int get() = entries.count { subjects[it.subjectId]?.type?.name == "LAB" }
+    val days: List<Int> get() = timeSlots.map { it.dayOfWeek }.distinct().sorted()
+}
 
 @HiltViewModel
 class TimetableGridViewModel @Inject constructor(
@@ -65,69 +55,104 @@ class TimetableGridViewModel @Inject constructor(
     private val _state = MutableStateFlow(TimetableGridState())
     val state: StateFlow<TimetableGridState> = _state
 
-    init { loadData() }
+    private var entriesJob: Job? = null
+    private var observedSectionId: Long? = null
 
-    private fun loadData() {
-        viewModelScope.launch {
-            val sections = sectionRepository.getActiveSections().first()
-            val timeSlots = timeSlotRepository.getActiveTimeSlots().first()
-            val subjects = subjectRepository.getActiveSubjects().first().associateBy { it.id }
-            val facultyMap = facultyRepository.getActiveFaculty().first().associateBy { it.id }
-            val rooms = roomRepository.getActiveRooms().first().associateBy { it.id }
-
-            _state.value = _state.value.copy(
-                sections = sections,
-                selectedSection = sections.firstOrNull(),
-                timeSlots = timeSlots,
-                subjects = subjects,
-                facultyMap = facultyMap,
-                rooms = rooms,
-                isLoading = false
-            )
-
-            sections.firstOrNull()?.let { loadEntries(it.id) }
-        }
+    init {
+        observeSections()
+        observeReferenceData()
     }
 
-    fun selectSection(section: SectionEntity) {
-        _state.value = _state.value.copy(selectedSection = section)
-        loadEntries(section.id)
-    }
-
-    private fun loadEntries(sectionId: Long) {
+    private fun observeSections() {
         viewModelScope.launch {
-            timetableRepository.getEntriesBySection(sectionId).collect { entries ->
-                _state.value = _state.value.copy(entries = entries)
+            sectionRepository.getActiveSections().collect { sections ->
+                val current = _state.value.selectedSection
+                val selected = when {
+                    current == null -> sections.firstOrNull()
+                    sections.any { it.id == current.id } -> sections.first { it.id == current.id }
+                    else -> sections.firstOrNull()
+                }
+                _state.update {
+                    it.copy(
+                        sections = sections,
+                        selectedSection = selected,
+                        isLoading = false
+                    )
+                }
+                if (selected != null && observedSectionId != selected.id) {
+                    observeEntries(selected.id)
+                }
             }
         }
     }
 
-    fun deleteEntry(entry: TimetableEntryEntity) {
-        viewModelScope.launch { timetableRepository.delete(entry) }
-    }
-    fun resolveEntry(entry: TimetableEntryEntity): ResolvedTimetableEntry {
-        val s = _state.value
-        val subject = s.subjects[entry.subjectId]
-        val faculty = s.facultyMap[entry.facultyId]
-        val room = s.rooms[entry.roomId]
-
-        val color = when (subject?.type) {
-            SubjectType.LAB -> SubjectLab
-            SubjectType.PROJECT -> SubjectProject
-            SubjectType.SEMINAR -> SubjectSeminar
-            SubjectType.LIBRARY -> SubjectLibrary
-            SubjectType.SPORTS -> SubjectSports
-            else -> SubjectTheory
+    private fun observeReferenceData() {
+        viewModelScope.launch {
+            combine(
+                subjectRepository.getActiveSubjects(),
+                facultyRepository.getActiveFaculty(),
+                roomRepository.getActiveRooms(),
+                timeSlotRepository.getActiveTimeSlots()
+            ) { subjects, faculty, rooms, slots ->
+                ReferenceData(
+                    subjects = subjects.associateBy { it.id },
+                    faculty = faculty.associateBy { it.id },
+                    rooms = rooms.associateBy { it.id },
+                    slots = slots
+                )
+            }.collect { data ->
+                _state.update {
+                    it.copy(
+                        subjects = data.subjects,
+                        facultyMap = data.faculty,
+                        rooms = data.rooms,
+                        timeSlots = data.slots
+                    )
+                }
+            }
         }
-
-        return ResolvedTimetableEntry(
-            entry = entry,
-            subjectName = subject?.name ?: "Unknown",
-            subjectCode = subject?.code ?: "",
-            subjectType = subject?.type ?: SubjectType.THEORY,
-            facultyName = faculty?.name ?: "Unknown",
-            roomName = room?.name ?: "Unknown",
-            color = color
-        )
     }
+
+    private fun observeEntries(sectionId: Long) {
+        observedSectionId = sectionId
+        entriesJob?.cancel()
+        entriesJob = viewModelScope.launch {
+            timetableRepository.getEntriesBySection(sectionId).collect { entries ->
+                _state.update { it.copy(entries = entries) }
+            }
+        }
+    }
+
+    fun selectSection(section: SectionEntity) {
+        if (_state.value.selectedSection?.id == section.id) return
+        _state.update { it.copy(selectedSection = section, entries = emptyList()) }
+        observeEntries(section.id)
+    }
+
+    fun selectSectionById(sectionId: Long) {
+        _state.value.sections.firstOrNull { it.id == sectionId }?.let(::selectSection)
+    }
+
+    fun deleteEntry(entry: TimetableEntryEntity) {
+        viewModelScope.launch {
+            runCatching { timetableRepository.delete(entry) }
+                .onSuccess {
+                    _state.update { it.copy(message = "Period removed from the timetable") }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(message = "Could not remove period: ${error.message}") }
+                }
+        }
+    }
+
+    fun consumeMessage() {
+        _state.update { it.copy(message = null) }
+    }
+
+    private data class ReferenceData(
+        val subjects: Map<Long, SubjectEntity>,
+        val faculty: Map<Long, FacultyEntity>,
+        val rooms: Map<Long, RoomEntity>,
+        val slots: List<TimeSlotEntity>
+    )
 }

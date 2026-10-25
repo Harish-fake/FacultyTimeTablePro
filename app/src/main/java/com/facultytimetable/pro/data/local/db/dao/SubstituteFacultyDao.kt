@@ -32,4 +32,7 @@ interface SubstituteFacultyDao {
 
     @Delete
     suspend fun delete(substitute: SubstituteFacultyEntity)
+
+    @Query("DELETE FROM substitute_faculty")
+    suspend fun deleteAll()
 }

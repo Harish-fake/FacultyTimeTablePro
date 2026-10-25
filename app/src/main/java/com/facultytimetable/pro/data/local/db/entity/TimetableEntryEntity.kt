@@ -46,7 +46,8 @@ import androidx.room.PrimaryKey
         Index(value = ["roomId"]),
         Index(value = ["timeSlotId"]),
         Index(value = ["facultyId", "timeSlotId", "dayOfWeek"], unique = true),
-        Index(value = ["roomId", "timeSlotId", "dayOfWeek"], unique = true)
+        Index(value = ["roomId", "timeSlotId", "dayOfWeek"], unique = true),
+        Index(value = ["sectionId", "timeSlotId", "dayOfWeek"], unique = true)
     ]
 )
 data class TimetableEntryEntity(

@@ -1,30 +1,33 @@
 package com.facultytimetable.pro.data.local.seed
 
 import com.facultytimetable.pro.data.local.db.dao.AcademicYearDao
+import com.facultytimetable.pro.data.local.db.dao.BackupHistoryDao
 import com.facultytimetable.pro.data.local.db.dao.DepartmentDao
 import com.facultytimetable.pro.data.local.db.dao.FacultyDao
+import com.facultytimetable.pro.data.local.db.dao.FacultyLeaveDao
+import com.facultytimetable.pro.data.local.db.dao.HolidayDao
 import com.facultytimetable.pro.data.local.db.dao.RoomDao
 import com.facultytimetable.pro.data.local.db.dao.SectionDao
 import com.facultytimetable.pro.data.local.db.dao.SemesterDao
 import com.facultytimetable.pro.data.local.db.dao.SubjectDao
+import com.facultytimetable.pro.data.local.db.dao.SubstituteFacultyDao
 import com.facultytimetable.pro.data.local.db.dao.TimeSlotDao
-import com.facultytimetable.pro.data.local.db.entity.AcademicYearEntity
-import com.facultytimetable.pro.data.local.db.entity.DepartmentEntity
-import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
-import com.facultytimetable.pro.data.local.db.entity.RoomEntity
-import com.facultytimetable.pro.data.local.db.entity.RoomType
-import com.facultytimetable.pro.data.local.db.entity.SectionEntity
-import com.facultytimetable.pro.data.local.db.entity.SemesterEntity
-import com.facultytimetable.pro.data.local.db.entity.SlotType
-import com.facultytimetable.pro.data.local.db.entity.SubjectEntity
-import com.facultytimetable.pro.data.local.db.entity.SubjectType
-import com.facultytimetable.pro.data.local.db.entity.TimeSlotEntity
+import com.facultytimetable.pro.data.local.db.dao.TimetableEntryDao
+import com.facultytimetable.pro.domain.usecase.timetable.AssignmentPlanner
+import com.facultytimetable.pro.domain.usecase.timetable.TimetableGenerator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Seeds the built-in demo data and produces a first, fully validated timetable.
+ *
+ * Each table is seeded independently and only when it is empty. This means a partially
+ * populated database is repaired on the next launch instead of being left broken (the old
+ * implementation returned early as soon as one department existed).
+ */
 @Singleton
 class DatabaseSeeder @Inject constructor(
     private val academicYearDao: AcademicYearDao,
@@ -34,134 +37,125 @@ class DatabaseSeeder @Inject constructor(
     private val roomDao: RoomDao,
     private val semesterDao: SemesterDao,
     private val sectionDao: SectionDao,
-    private val timeSlotDao: TimeSlotDao
+    private val timeSlotDao: TimeSlotDao,
+    private val timetableEntryDao: TimetableEntryDao,
+    private val facultyLeaveDao: FacultyLeaveDao,
+    private val substituteFacultyDao: SubstituteFacultyDao,
+    private val holidayDao: HolidayDao,
+    private val backupHistoryDao: BackupHistoryDao,
+    private val planner: AssignmentPlanner,
+    private val generator: TimetableGenerator
 ) {
     suspend fun seed() = withContext(Dispatchers.IO) {
-        if (departmentDao.getCount() > 0) return@withContext
-
-        val deptIds = insertDepartments()
-        val facultyIds = insertFaculty(deptIds)
-        val subjectIds = insertSubjects(deptIds)
-        val roomIds = insertRooms()
-
-        val yearId = insertAcademicYear()
-        val semIds = insertSemesters(yearId)
-        val sectionIds = insertSections(semIds)
-
-        insertTimeSlots()
+        val deptIds = ensureDepartments()
+        ensureFaculty(deptIds)
+        ensureSubjects(deptIds)
+        ensureRooms()
+        val yearId = ensureAcademicYear()
+        val semesterId = ensureSemesters(yearId)
+        ensureSections(semesterId, deptIds)
+        ensureTimeSlots()
+        ensureDemoTimetable()
     }
 
-    private suspend fun insertDepartments(): Map<String, Long> {
-        val depts = listOf(
-            DepartmentEntity(name = "Computer Science & Engineering", code = "CSE", headName = "Dr. Rajesh Kumar", description = "Department of Computer Science and Engineering offering B.Tech and M.Tech programs."),
-            DepartmentEntity(name = "Electronics & Communication", code = "ECE", headName = "Dr. Priya Sharma", description = "Department of Electronics and Communication Engineering."),
-            DepartmentEntity(name = "Mechanical Engineering", code = "ME", headName = "Prof. Suresh Patel", description = "Department of Mechanical Engineering.")
-        )
-        val ids = mutableMapOf<String, Long>()
-        depts.forEach { ids[it.code] = departmentDao.insert(it) }
-        return ids
+    /**
+     * Restores the shipped demo data set. Used by “Restore demo data” on the settings screen.
+     * Preferences (theme, PIN, …) are intentionally preserved.
+     */
+    suspend fun resetToSampleData() = withContext(Dispatchers.IO) {
+        // Delete children first so foreign keys are always satisfied.
+        timetableEntryDao.deleteAll()
+        substituteFacultyDao.deleteAll()
+        facultyLeaveDao.deleteAll()
+        holidayDao.deleteAll()
+        sectionDao.deleteAll()
+        semesterDao.deleteAll()
+        subjectDao.deleteAll()
+        facultyDao.deleteAll()
+        academicYearDao.deleteAll()
+        departmentDao.deleteAll()
+        roomDao.deleteAll()
+        timeSlotDao.deleteAll()
+        backupHistoryDao.deleteAll()
+        seed()
     }
 
-    private suspend fun insertFaculty(deptIds: Map<String, Long>): Map<String, Long> {
-        val faculty = listOf(
-            FacultyEntity(name = "Dr. Arun Kumar", email = "arun@college.edu", phone = "9876543210", designation = "Professor", departmentId = deptIds["CSE"]!!, qualification = "Ph.D., CSE", experience = 15, maxWeeklyHours = 24),
-            FacultyEntity(name = "Prof. Neha Gupta", email = "neha@college.edu", phone = "9876543211", designation = "Associate Professor", departmentId = deptIds["CSE"]!!, qualification = "M.Tech, CSE", experience = 10, maxWeeklyHours = 22),
-            FacultyEntity(name = "Dr. Amit Singh", email = "amit@college.edu", phone = "9876543212", designation = "Professor", departmentId = deptIds["ECE"]!!, qualification = "Ph.D., ECE", experience = 12, maxWeeklyHours = 24),
-            FacultyEntity(name = "Prof. Sunita Reddy", email = "sunita@college.edu", phone = "9876543213", designation = "Assistant Professor", departmentId = deptIds["ECE"]!!, qualification = "M.Tech, ECE", experience = 8, maxWeeklyHours = 20),
-            FacultyEntity(name = "Dr. Vikram Joshi", email = "vikram@college.edu", phone = "9876543214", designation = "Professor", departmentId = deptIds["ME"]!!, qualification = "Ph.D., ME", experience = 18, maxWeeklyHours = 22),
-            FacultyEntity(name = "Prof. Anjali Deshmukh", email = "anjali@college.edu", phone = "9876543215", designation = "Associate Professor", departmentId = deptIds["ME"]!!, qualification = "M.Tech, ME", experience = 9, maxWeeklyHours = 24)
-        )
-        val ids = mutableMapOf<String, Long>()
-        faculty.forEach { ids[it.email.substringBefore("@")] = facultyDao.insert(it) }
-        return ids
-    }
+    /**
+     * Generates the demo timetable once, so a fresh install opens with a complete,
+     * conflict-free weekly schedule instead of an empty grid. Failures are non-fatal:
+     * the user can still open the generator and see the exact reason.
+     */
+    private suspend fun ensureDemoTimetable() {
+        if (timetableEntryDao.getCount() > 0) return
 
-    private suspend fun insertSubjects(deptIds: Map<String, Long>): Map<String, Long> {
-        val subjects = listOf(
-            SubjectEntity(name = "Data Structures & Algorithms", code = "CS201", type = SubjectType.THEORY, departmentId = deptIds["CSE"]!!, hoursPerWeek = 4),
-            SubjectEntity(name = "Database Management Systems", code = "CS202", type = SubjectType.THEORY, departmentId = deptIds["CSE"]!!, hoursPerWeek = 4),
-            SubjectEntity(name = "Data Structures Lab", code = "CS251", type = SubjectType.LAB, departmentId = deptIds["CSE"]!!, hoursPerWeek = 0, labHoursPerWeek = 3, isLabRequired = true),
-            SubjectEntity(name = "Digital Logic Design", code = "EC201", type = SubjectType.THEORY, departmentId = deptIds["ECE"]!!, hoursPerWeek = 4),
-            SubjectEntity(name = "Analog Electronics", code = "EC202", type = SubjectType.THEORY, departmentId = deptIds["ECE"]!!, hoursPerWeek = 4),
-            SubjectEntity(name = "Analog Lab", code = "EC251", type = SubjectType.LAB, departmentId = deptIds["ECE"]!!, hoursPerWeek = 0, labHoursPerWeek = 3, isLabRequired = true),
-            SubjectEntity(name = "Engineering Mechanics", code = "ME201", type = SubjectType.THEORY, departmentId = deptIds["ME"]!!, hoursPerWeek = 4),
-            SubjectEntity(name = "Thermodynamics", code = "ME202", type = SubjectType.THEORY, departmentId = deptIds["ME"]!!, hoursPerWeek = 4),
-            SubjectEntity(name = "Mini Project", code = "CS290", type = SubjectType.PROJECT, departmentId = deptIds["CSE"]!!, hoursPerWeek = 2)
-        )
-        val ids = mutableMapOf<String, Long>()
-        subjects.forEach { ids[it.code] = subjectDao.insert(it) }
-        return ids
-    }
+        runCatching {
+            val departments = departmentDao.getActiveDepartments().first()
+            val sections = sectionDao.getActiveSections().first()
+            val subjects = subjectDao.getActiveSubjects().first()
+            val faculty = facultyDao.getActiveFaculty().first()
+            val rooms = roomDao.getActiveRooms().first()
+            val timeSlots = timeSlotDao.getActiveTimeSlots().first()
 
-    private suspend fun insertRooms(): Map<String, Long> {
-        val rooms = listOf(
-            RoomEntity(name = "CSE-101", capacity = 60, type = RoomType.CLASSROOM, building = "CS Block", floor = "1st", hasProjector = true, hasAC = true),
-            RoomEntity(name = "ECE-102", capacity = 50, type = RoomType.CLASSROOM, building = "ECE Block", floor = "1st", hasProjector = true, hasAC = false),
-            RoomEntity(name = "CS Lab-1", capacity = 30, type = RoomType.LAB, building = "CS Block", floor = "2nd", hasProjector = false, hasAC = true),
-            RoomEntity(name = "Analog Lab", capacity = 25, type = RoomType.LAB, building = "ECE Block", floor = "2nd", hasProjector = false, hasAC = true),
-            RoomEntity(name = "Seminar Hall", capacity = 100, type = RoomType.SEMINAR_HALL, building = "Main Block", floor = "Ground", hasProjector = true, hasAC = true)
-        )
-        val ids = mutableMapOf<String, Long>()
-        rooms.forEach { ids[it.name] = roomDao.insert(it) }
-        return ids
-    }
+            val plan = planner.plan(sections, subjects, faculty, departments)
+            if (plan.assignments.isEmpty()) return@runCatching
 
-    private suspend fun insertAcademicYear(): Long {
-        val cal = Calendar.getInstance()
-        val year = cal.get(Calendar.YEAR)
-        cal.set(year, Calendar.JULY, 1, 0, 0, 0)
-        val start = cal.timeInMillis
-        cal.set(year + 1, Calendar.JUNE, 30, 23, 59, 59)
-        val end = cal.timeInMillis
-        return academicYearDao.insert(
-            AcademicYearEntity(name = "$year-${year + 1}", startDate = start, endDate = end, isCurrent = true)
-        )
-    }
-
-    private suspend fun insertSemesters(yearId: Long): Map<Int, Long> {
-        val oddId = semesterDao.insert(
-            SemesterEntity(name = "Odd Semester", academicYearId = yearId, semesterNumber = 1, isActive = true)
-        )
-        val evenId = semesterDao.insert(
-            SemesterEntity(name = "Even Semester", academicYearId = yearId, semesterNumber = 2, isActive = false)
-        )
-        return mapOf(1 to oddId, 2 to evenId)
-    }
-
-    private suspend fun insertSections(semIds: Map<Int, Long>): Map<String, Long> {
-        val sections = listOf(
-            SectionEntity(name = "CSE 3A", semesterId = semIds[1]!!, strength = 55, isActive = true),
-            SectionEntity(name = "CSE 3B", semesterId = semIds[1]!!, strength = 52, isActive = true),
-            SectionEntity(name = "ECE 3A", semesterId = semIds[1]!!, strength = 48, isActive = true)
-        )
-        val ids = mutableMapOf<String, Long>()
-        sections.forEach { ids[it.name] = sectionDao.insert(it) }
-        return ids
-    }
-
-    private suspend fun insertTimeSlots() {
-        val timeSlots = mutableListOf<TimeSlotEntity>()
-        for (day in 1..5) {
-            val periods = listOf(
-                "08:30" to "09:30",
-                "09:30" to "10:30",
-                "10:30" to "11:30",
-                "11:30" to "12:30",
-                "12:30" to "13:30",
-                "13:30" to "14:30",
-                "14:30" to "15:30",
-                "15:30" to "16:30"
+            val result = generator.generateBest(
+                assignments = plan.assignments,
+                timeSlots = timeSlots,
+                rooms = rooms,
+                facultyList = faculty,
+                attempts = 5
             )
-            periods.forEachIndexed { idx, (start, end) ->
-                val periodNum = idx + 1
-                val type = when (periodNum) {
-                    5 -> SlotType.LUNCH
-                    7 -> SlotType.BREAK
-                    else -> SlotType.REGULAR
-                }
-                timeSlots.add(TimeSlotEntity(dayOfWeek = day, periodNumber = periodNum, startTime = start, endTime = end, type = type, isActive = true))
+            if (result.entries.isNotEmpty()) {
+                timetableEntryDao.replaceAll(result.entries)
             }
         }
-        timeSlotDao.insertAll(timeSlots)
+    }
+
+    private suspend fun ensureDepartments(): Map<String, Long> {
+        val ids = mutableMapOf<String, Long>()
+        SampleDataProvider.departments().forEach { department ->
+            val existing = departmentDao.getDepartmentByCode(department.code)
+            ids[department.code] = existing?.id ?: departmentDao.insert(department)
+        }
+        return ids
+    }
+
+    private suspend fun ensureFaculty(deptIds: Map<String, Long>) {
+        if (facultyDao.getCount() > 0) return
+        SampleDataProvider.faculty(deptIds).forEach { facultyDao.insert(it) }
+    }
+
+    private suspend fun ensureSubjects(deptIds: Map<String, Long>) {
+        if (subjectDao.getCount() > 0) return
+        SampleDataProvider.subjects(deptIds).forEach { subjectDao.insert(it) }
+    }
+
+    private suspend fun ensureRooms() {
+        if (roomDao.getCount() > 0) return
+        SampleDataProvider.rooms().forEach { roomDao.insert(it) }
+    }
+
+    private suspend fun ensureAcademicYear(): Long {
+        academicYearDao.getCurrentAcademicYear()?.let { return it.id }
+        academicYearDao.getAllAcademicYears().first().firstOrNull()?.let { return it.id }
+        return academicYearDao.insert(SampleDataProvider.academicYear())
+    }
+
+    private suspend fun ensureSemesters(yearId: Long): Long {
+        semesterDao.getActiveSemesters().first().firstOrNull()?.let { return it.id }
+        semesterDao.getAllSemesters().first().firstOrNull()?.let { return it.id }
+        val ids = SampleDataProvider.semesters(yearId).map { semesterDao.insert(it) }
+        return ids.first()
+    }
+
+    private suspend fun ensureSections(semesterId: Long, deptIds: Map<String, Long>) {
+        if (sectionDao.getCount() > 0) return
+        SampleDataProvider.sections(semesterId, deptIds).forEach { sectionDao.insert(it) }
+    }
+
+    private suspend fun ensureTimeSlots() {
+        if (timeSlotDao.getCount() > 0) return
+        timeSlotDao.insertAll(SampleDataProvider.timeSlots())
     }
 }

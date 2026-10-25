@@ -1,6 +1,7 @@
 package com.facultytimetable.pro.presentation.section
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.People
@@ -20,8 +22,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,8 +55,17 @@ fun SectionListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<SectionEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(title = "Sections", onBackClick = { navController.popBackStack() })
 
         if (state.isLoading) LoadingState()
@@ -74,6 +88,9 @@ fun SectionListScreen(
                                 Text(item.section.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                                 Text("Strength: ${item.section.strength} | ${item.semesterName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                            IconButton(onClick = { navController.navigate(Routes.timetableSection(item.section.id)) }) {
+                                Icon(Icons.Default.CalendarMonth, contentDescription = "View timetable", tint = MaterialTheme.colorScheme.secondary)
+                            }
                             IconButton(onClick = { navController.navigate(Routes.sectionForm(item.section.id)) }) {
                                 Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
                             }
@@ -86,6 +103,12 @@ fun SectionListScreen(
             }
         }
         AppFAB(onClick = { navController.navigate(Routes.sectionForm()) })
+    }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 
     showDeleteDialog?.let { section ->

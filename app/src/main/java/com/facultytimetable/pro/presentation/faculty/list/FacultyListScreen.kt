@@ -3,6 +3,7 @@ package com.facultytimetable.pro.presentation.faculty.list
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,8 +27,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,8 +62,17 @@ fun FacultyListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<FacultyEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
             title = "Faculty",
             actions = {
@@ -107,10 +120,16 @@ fun FacultyListScreen(
         AppFAB(onClick = { navController.navigate(Routes.facultyForm()) })
     }
 
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
     showDeleteDialog?.let { faculty ->
         ConfirmDialog(
             title = "Delete Faculty",
-            message = "Are you sure you want to delete ${faculty.name}? This action cannot be undone.",
+            message = "Delete ${faculty.name}? Their timetable entries will also be removed. This cannot be undone.",
             confirmText = "Delete",
             onConfirm = {
                 viewModel.deleteFaculty(faculty)

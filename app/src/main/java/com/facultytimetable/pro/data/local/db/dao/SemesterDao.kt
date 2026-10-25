@@ -41,4 +41,13 @@ interface SemesterDao {
 
     @Query("SELECT COUNT(*) FROM semesters")
     suspend fun getCount(): Int
+
+    @Query("UPDATE semesters SET isActive = 0")
+    suspend fun deactivateAll()
+
+    @Query("UPDATE semesters SET isActive = 1 WHERE id = :id")
+    suspend fun setActiveSemester(id: Long)
+
+    @Query("DELETE FROM semesters")
+    suspend fun deleteAll()
 }
