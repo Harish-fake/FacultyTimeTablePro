@@ -25,14 +25,14 @@ jobs:
           java-version: 17
           distribution: 'temurin'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # GitHub-hosted Ubuntu runners ship with the Android SDK and cmdline-tools.
+      # Do not use android-actions/setup-android here: its bootstrap step tries to
+      # install the retired "tools" package and fails before our build starts.
       - name: Install SDK packages
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+        run: |
+          sdkmanager --version
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
