@@ -186,7 +186,7 @@ File: `app/build/outputs/apk/debug/app-debug.apk`, 21 MB.
 5. Asserts the APK exists, prints its SHA-256 and `aapt2` metadata.
 6. Uploads the installable APK + checksum as `FacultyTimeTablePro-v1.2.0-debug` (90 days) and the test report (14 days).
 
-**Verified CI run:** see the latest successful **Android Build** on `main`; all steps must pass, including unit tests, APK verification and artifact upload. The release notes record the checksum of the downloaded APK.
+**Verified CI run:** [Actions run 40268528914](https://github.com/Harish-fake/FacultyTimeTablePro/actions/runs/40268528914) — all build steps passed, including 7 unit tests, APK verification and artifact upload. The downloaded artifact reported versionCode 3 / versionName 1.2.0 with SHA-256 `946f35809ca1ed8043b16956d0382e201712f2c0eacc4395ece6e743df4faa09`.
 
 ---
 
@@ -266,7 +266,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Open the repository's **Actions** tab → latest successful **Android Build** → artifact `FacultyTimeTablePro-v1.2.0-debug`. The artifact contains `app-debug.apk` and `app-debug.apk.sha256`.
 
-A verified build is also attached to the v1.2.0 GitHub release; the release notes list the exact SHA-256.
+A verified build is also attached to the [v1.2.0 release](https://github.com/Harish-fake/FacultyTimeTablePro/releases/tag/v1.2.0), with SHA-256 `946f35809ca1ed8043b16956d0382e201712f2c0eacc4395ece6e743df4faa09`.
 
 ---
 
