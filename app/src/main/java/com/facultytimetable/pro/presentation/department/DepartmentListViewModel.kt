@@ -2,6 +2,7 @@ package com.facultytimetable.pro.presentation.department
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.facultytimetable.pro.data.local.db.dao.SectionDao
 import com.facultytimetable.pro.data.local.db.entity.DepartmentEntity
 import com.facultytimetable.pro.domain.repository.DepartmentRepository
 import com.facultytimetable.pro.domain.repository.FacultyRepository
@@ -27,7 +28,8 @@ data class DepartmentListState(
 class DepartmentListViewModel @Inject constructor(
     private val departmentRepository: DepartmentRepository,
     private val facultyRepository: FacultyRepository,
-    private val subjectRepository: SubjectRepository
+    private val subjectRepository: SubjectRepository,
+    private val sectionDao: SectionDao
 ) : ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
@@ -58,8 +60,19 @@ class DepartmentListViewModel @Inject constructor(
             val hasSubjects = runCatching {
                 subjectRepository.getAllSubjects().first().any { it.departmentId == department.id }
             }.getOrDefault(false)
-            if (hasFaculty || hasSubjects) {
-                message.value = "Cannot delete ${department.code}: it still has faculty or subjects."
+            val hasSections = runCatching {
+                sectionDao.getAllSections().first().any {
+                    it.departmentId == department.id ||
+                        (it.departmentId == 0L && it.name.startsWith(department.code, ignoreCase = true))
+                }
+            }.getOrDefault(false)
+            if (hasFaculty || hasSubjects || hasSections) {
+                val blockers = buildList {
+                    if (hasFaculty) add("faculty")
+                    if (hasSubjects) add("subjects")
+                    if (hasSections) add("sections")
+                }
+                message.value = "Cannot delete ${department.code}: it still has ${blockers.joinToString(", ")}."
                 return@launch
             }
             runCatching { departmentRepository.delete(department) }

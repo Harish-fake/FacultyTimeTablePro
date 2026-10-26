@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.facultytimetable.pro.BuildConfig
 import com.facultytimetable.pro.presentation.common.components.AppCard
 import com.facultytimetable.pro.presentation.common.components.AppTopBar
 import com.facultytimetable.pro.presentation.common.components.GradientBanner
@@ -67,6 +68,9 @@ fun MoreScreen(navController: NavController) {
                 items = listOf(
                     MoreItem("Auto generator", "Build and validate a new timetable", Icons.Default.AutoAwesome) {
                         navController.navigate(Routes.TIMETABLE_GENERATOR)
+                    },
+                    MoreItem("Sample data", "Load the verified demo college", Icons.Default.AutoAwesome) {
+                        navController.navigate(Routes.SAMPLE_DATA)
                     },
                     MoreItem("Academic calendar", "Years, semesters and holidays", Icons.Default.CalendarMonth) {
                         navController.navigate(Routes.ACADEMIC_CALENDAR)
@@ -120,7 +124,7 @@ fun MoreScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                "Faculty TimeTable Pro · v1.1.0",
+                "Faculty TimeTable Pro · v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp)

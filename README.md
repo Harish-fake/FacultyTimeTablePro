@@ -2,7 +2,7 @@
 
 An offline-first Android application for building and managing college faculty timetables. It replaces spreadsheet-driven scheduling with verified master data, a constraint-aware automatic generator, and role-focused timetable views.
 
-**Version 1.1.0** · `minSdk 26` · `targetSdk 36` · Kotlin 2.1 · Jetpack Compose · Room · Hilt
+**Version 1.2.0** · `minSdk 26` · `targetSdk 36` · Kotlin 2.1 · Jetpack Compose · Room · Hilt
 
 ---
 
@@ -11,11 +11,13 @@ An offline-first Android application for building and managing college faculty t
 - **Conflict-free automatic generation** — respects faculty, room, section, workload, lab-continuity and room-capacity constraints.
 - **Real lab scheduling** — labs are placed as consecutive blocks in actual laboratory rooms, never in classrooms.
 - **Seeded demo that actually works** — first launch creates a complete, conflict-free 48-period timetable across four sections. No setup required to evaluate the app.
+- **One-click sample-data workflow** — a dedicated screen loads the verified demo college, generates the timetable, and proves the result (per-section quotas, conflicts and checksum-backed backup).
 - **Five-tab professional workflow** — Home, Timetable, Faculty, Reports, More.
+- **Safe edits** — destructive deletes are blocked while timetable entries still reference a department, faculty member, subject, room, section or period.
 - **Complete master data** — departments, faculty, subjects (theory/lab/project), rooms, sections, academic years, semesters, holidays and configurable periods.
 - **Faculty operations** — individual faculty timetables, leave records and substitute tracking.
 - **Real reports** — faculty workload, room utilization, section coverage and department summary, with CSV export.
-- **Real backup and restore** — versioned JSON snapshots written through the Android Storage Access Framework, with checksum verification, preview and atomic restore.
+- **Real backup and restore** — versioned JSON snapshots written through the Android Storage Access Framework, with SHA-256 signing, a pre-restore preview and atomic restore.
 - **PIN app lock** — salted SHA-256 PIN hashing, 60-second background grace period, no plaintext credentials.
 - **Predictable database upgrades** — Room schema export checked in and a real `1 → 2` migration; no destructive fallback.
 
@@ -29,7 +31,7 @@ An offline-first Android application for building and managing college faculty t
 | **Timetable** | Section picker, day tabs, weekly grid, class details, delete entry |
 | **Faculty** | Directory, profiles, weekly timetable, leave management |
 | **Reports** | Workload, room utilization, section coverage, department summary, CSV export |
-| **More** | Generator, academic calendar, periods, master data, backup, settings |
+| **More** | Generator, sample data, academic calendar, periods, master data, backup, settings |
 
 ### Master data
 
@@ -71,7 +73,7 @@ The built-in sample data (`SampleDataProvider`) is the same data used by the uni
 
 Generation result on this dataset: **48/48 periods scheduled, 0 conflicts**, all labs consecutive and in lab rooms, all rooms large enough for their sections, all faculty within weekly limits.
 
-You can regenerate or restore this dataset at any time from **More → Backup & data → Reset demo data** (or the Settings screen), and run **More → Generate timetable**.
+Open **More → Sample data → Load & generate** to replace all data with this dataset and produce the timetable in one step. The screen shows the expected per-section quotas before loading and the verified result afterwards. The same action is available from **Dashboard → Quick actions → Sample data** and **Settings → Restore demo data**.
 
 ---
 
@@ -103,6 +105,7 @@ app/src/main/java/com/facultytimetable/pro
     ├── navigation/         Routes and NavGraph
     ├── reports/            Report calculations and CSV export
     ├── root/               Theme + PIN lock gate
+    ├── sampledata/         One-click verified sample-data workflow
     ├── settings/           Preferences and data management
     └── timetable/          Grid, section, faculty, generator
 ```
@@ -164,27 +167,29 @@ The Gradle wrapper JAR is committed, so a fresh clone builds without regeneratin
 2. `testDebugUnitTest`
 3. `assembleDebug`
 4. APK presence check, SHA-256 checksum and `aapt2` metadata dump
-5. Uploads the installable APK and checksum as the `FacultyTimeTablePro-v1.1.0-debug` artifact (90-day retention), plus the unit-test report
+5. Uploads the installable APK and checksum as the `FacultyTimeTablePro-v1.2.0-debug` artifact (90-day retention), plus the unit-test report
 
 Download the latest APK from the **Actions** tab of the repository: open the latest successful *Android Build* run and use the artifact section.
 
-**Direct download:** [FacultyTimeTablePro v1.1.0 release](https://github.com/Harish-fake/FacultyTimeTablePro/releases/tag/v1.1.0)  
-APK SHA-256: `73be798e7e2cbfefffafc6bd0905f0c3a1a925db58a03631f934944db10ef930`
+**Direct download:** the latest [GitHub release](https://github.com/Harish-fake/FacultyTimeTablePro/releases) attaches the APK and its SHA-256 checksum.
 
 ---
 
 ## Tests
 
-`app/src/test/java/com/facultytimetable/pro/domain/usecase/timetable/TimetableGeneratorTest.kt` verifies:
+`TimetableGeneratorTest` verifies:
 
-1. `sample data produces a complete conflict free timetable` — every required period is scheduled; zero conflicts; no duplicate section, faculty or room slots; no lunch/break teaching; labs are consecutive, single-day, single-room and in a `LAB`; faculty weekly limits and room capacities hold.
-2. `generation is deterministic for the same seed` — identical output for identical input and seed.
-3. `lunch and break periods are never used` — non-teaching slots are excluded.
+1. `sample data produces a complete conflict free timetable` — exactly 48 periods, including the documented 13/13/11/11 split; zero conflicts; no duplicate section, faculty or room slots; no lunch/break teaching; labs are consecutive, single-day, single-room and in a `LAB`; faculty weekly limits and room capacities hold.
+2. `sample dataset matches the documented size and quotas` — 3 departments, 6 faculty, 10 subjects, 8 rooms, 4 sections, 40 time slots, 30 teaching periods and 48 required periods.
+3. `generation is deterministic for the same seed` — identical output for identical input and seed.
+4. `lunch and break periods are never used` — non-teaching slots are excluded.
+
+`BackupIntegrityTest` verifies that the SHA-256 checksum is deterministic, matches the known digest for `abc`, and changes whenever the payload changes.
 
 Local result (JDK 17, Android SDK 36):
 
 ```
-tests="3" skipped="0" failures="0" errors="0"
+tests="7" skipped="0" failures="0" errors="0"
 BUILD SUCCESSFUL
 ```
 
@@ -192,11 +197,14 @@ BUILD SUCCESSFUL
 
 ## Backup format
 
-Backups are JSON documents containing a schema version, export timestamp, checksum, row counts and all tables. Restore:
+Backups are JSON documents containing a schema version, export timestamp, SHA-256 checksum and all tables. Restore:
 
-1. Validates the schema version and checksum.
-2. Checks every foreign-key reference before writing.
-3. Replaces tables atomically inside a Room transaction.
+1. Shows a preview with the app version, timestamp, record counts and checksum status.
+2. Rejects corrupted files and backups with missing or duplicate ids.
+3. Checks every foreign-key reference before writing.
+4. Replaces tables atomically inside a Room transaction.
+
+Legacy format-1 snapshots without a checksum are clearly marked as such in the confirmation dialog.
 
 Files are written and read with the Storage Access Framework, so no broad storage permission is required. Backup history (name, size, checksum, timestamp) is recorded in the app.
 
@@ -214,12 +222,13 @@ Files are written and read with the Storage Access Framework, so no broad storag
 
 ## Project status
 
-Version 1.1.0 is a complete, buildable release of the application:
+Version 1.2.0 is a complete, buildable release of the application:
 
-- All previously broken user flows are fixed (section editing, faculty timetable/leave navigation, destructive generation, report/backup stubs, direct DAO writes).
-- All promised screens are implemented and reachable.
-- Database migration and schema export replace the destructive prototype setup.
-- The generator handles labs, capacity, workload and determinism, and is covered by tests.
+- A dedicated sample-data workflow loads the verified demo college and generates the 48-period timetable in one step.
+- Backups are checksum-signed, previewed before restore, and rejected when corrupted.
+- Delete actions are guarded while timetable data still references the record.
+- Leave times and duplicate room/section names are validated.
+- The generator handles labs, capacity, workload and determinism, and is covered by seven unit tests.
 - CI produces a verified, installable APK artifact.
 
 See [`PROJECT_REPORT.md`](PROJECT_REPORT.md) for the detailed verification report, including every defect that was fixed and the evidence for each fix.

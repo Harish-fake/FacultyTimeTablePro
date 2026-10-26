@@ -91,9 +91,18 @@ class RoomFormViewModel @Inject constructor(
             _state.value = _state.value.copy(isSaving = true)
             try {
                 val base = existing.value
+                val normalizedName = s.name.trim()
+                val duplicate = roomRepository.getRoomByName(normalizedName)
+                if (duplicate != null && duplicate.id != roomId) {
+                    _state.value = _state.value.copy(
+                        isSaving = false,
+                        error = "A room named $normalizedName already exists"
+                    )
+                    return@launch
+                }
                 val entity = if (base == null) {
                     RoomEntity(
-                        name = s.name.trim(),
+                        name = normalizedName,
                         capacity = capacity,
                         type = s.type,
                         building = s.building.trim(),
@@ -103,7 +112,7 @@ class RoomFormViewModel @Inject constructor(
                     )
                 } else {
                     base.copy(
-                        name = s.name.trim(),
+                        name = normalizedName,
                         capacity = capacity,
                         type = s.type,
                         building = s.building.trim(),

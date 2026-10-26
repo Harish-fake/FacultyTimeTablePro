@@ -39,6 +39,7 @@ import com.facultytimetable.pro.presentation.faculty.list.FacultyListScreen
 import com.facultytimetable.pro.presentation.more.MoreScreen
 import com.facultytimetable.pro.presentation.reports.ReportsScreen
 import com.facultytimetable.pro.presentation.room.RoomFormScreen
+import com.facultytimetable.pro.presentation.sampledata.SampleDataScreen
 import com.facultytimetable.pro.presentation.room.RoomListScreen
 import com.facultytimetable.pro.presentation.search.SearchScreen
 import com.facultytimetable.pro.presentation.section.SectionFormScreen
@@ -245,6 +246,10 @@ fun NavGraph() {
 
             composable(Routes.TIMETABLE_GENERATOR) {
                 GeneratorScreen(navController = navController)
+            }
+
+            composable(Routes.SAMPLE_DATA) {
+                SampleDataScreen(navController = navController)
             }
 
             composable(Routes.ACADEMIC_CALENDAR) {

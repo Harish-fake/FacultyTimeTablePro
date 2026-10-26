@@ -55,6 +55,18 @@ interface TimetableEntryDao {
     @Query("SELECT COUNT(*) FROM timetable_entries WHERE roomId = :roomId")
     fun getEntryCountByRoom(roomId: Long): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM timetable_entries WHERE roomId = :roomId")
+    suspend fun getEntryCountByRoomNow(roomId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM timetable_entries WHERE subjectId = :subjectId")
+    suspend fun getEntryCountBySubject(subjectId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM timetable_entries WHERE sectionId = :sectionId")
+    suspend fun getEntryCountBySection(sectionId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM timetable_entries WHERE timeSlotId = :timeSlotId")
+    suspend fun getEntryCountByTimeSlot(timeSlotId: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(entry: TimetableEntryEntity): Long
 

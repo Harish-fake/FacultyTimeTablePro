@@ -55,6 +55,26 @@ class FacultyLeaveViewModel @Inject constructor(
             _state.update { it.copy(message = "Enter the leave date as YYYY-MM-DD.") }
             return
         }
+
+        val start = startTime.trim()
+        val end = endTime.trim()
+        if (start.isEmpty() != end.isEmpty()) {
+            _state.update { it.copy(message = "Enter both a start and an end time, or leave both blank for a full day.") }
+            return
+        }
+        if (start.isNotEmpty()) {
+            val startMinutes = parseClockTime(start)
+            val endMinutes = parseClockTime(end)
+            if (startMinutes == null || endMinutes == null) {
+                _state.update { it.copy(message = "Use 24-hour times such as 09:00 and 17:00.") }
+                return
+            }
+            if (endMinutes <= startMinutes) {
+                _state.update { it.copy(message = "The leave end time must be after the start time.") }
+                return
+            }
+        }
+
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
             runCatching {
@@ -62,8 +82,8 @@ class FacultyLeaveViewModel @Inject constructor(
                     FacultyLeaveEntity(
                         facultyId = facultyId,
                         leaveDate = date,
-                        startTime = startTime.trim(),
-                        endTime = endTime.trim(),
+                        startTime = start,
+                        endTime = end,
                         reason = reason.trim(),
                         isApproved = approved
                     )
@@ -104,10 +124,18 @@ class FacultyLeaveViewModel @Inject constructor(
         _state.update { it.copy(message = null) }
     }
 
+    /** Parses a strict 24-hour HH:mm value into minutes since midnight. */
+    private fun parseClockTime(text: String): Int? {
+        if (!CLOCK_TIME.matches(text)) return null
+        val (hour, minute) = text.split(':').map { it.toInt() }
+        return hour * 60 + minute
+    }
+
     private fun parseDate(text: String): Long? {
         return runCatching {
             val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
             val date = format.parse(text.trim()) ?: return null
+            if (format.format(date) != text.trim()) return null
             Calendar.getInstance().apply {
                 time = date
                 set(Calendar.HOUR_OF_DAY, 0)
@@ -116,5 +144,9 @@ class FacultyLeaveViewModel @Inject constructor(
                 set(Calendar.MILLISECOND, 0)
             }.timeInMillis
         }.getOrNull()
+    }
+
+    private companion object {
+        val CLOCK_TIME = Regex("""^([01]\d|2[0-3]):[0-5]\d$""")
     }
 }

@@ -2,6 +2,7 @@ package com.facultytimetable.pro.presentation.subject
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.facultytimetable.pro.data.local.db.dao.TimetableEntryDao
 import com.facultytimetable.pro.data.local.db.entity.SubjectEntity
 import com.facultytimetable.pro.domain.repository.SubjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,7 +22,8 @@ data class SubjectListState(
 
 @HiltViewModel
 class SubjectListViewModel @Inject constructor(
-    private val subjectRepository: SubjectRepository
+    private val subjectRepository: SubjectRepository,
+    private val timetableEntryDao: TimetableEntryDao
 ) : ViewModel() {
 
     private val message = MutableStateFlow<String?>(null)
@@ -37,10 +39,17 @@ class SubjectListViewModel @Inject constructor(
 
     fun deleteSubject(subject: SubjectEntity) {
         viewModelScope.launch {
+            val scheduled = runCatching {
+                timetableEntryDao.getEntryCountBySubject(subject.id)
+            }.getOrDefault(0)
+            if (scheduled > 0) {
+                message.value = "Cannot delete ${subject.code}: $scheduled timetable period(s) still use it. Regenerate the timetable first."
+                return@launch
+            }
             runCatching { subjectRepository.delete(subject) }
                 .onSuccess { message.value = "${subject.name} deleted" }
                 .onFailure {
-                    message.value = "Cannot delete ${subject.code}: it is used by the timetable."
+                    message.value = "Cannot delete ${subject.code}: it is still in use."
                 }
         }
     }

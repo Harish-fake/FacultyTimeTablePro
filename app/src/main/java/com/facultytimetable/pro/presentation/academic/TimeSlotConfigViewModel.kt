@@ -3,6 +3,7 @@ package com.facultytimetable.pro.presentation.academic
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.facultytimetable.pro.data.local.db.dao.TimeSlotDao
+import com.facultytimetable.pro.data.local.db.dao.TimetableEntryDao
 import com.facultytimetable.pro.data.local.db.entity.SlotType
 import com.facultytimetable.pro.data.local.db.entity.TimeSlotEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,7 +30,8 @@ data class TimeSlotConfigState(
 
 @HiltViewModel
 class TimeSlotConfigViewModel @Inject constructor(
-    private val timeSlotDao: TimeSlotDao
+    private val timeSlotDao: TimeSlotDao,
+    private val timetableEntryDao: TimetableEntryDao
 ) : ViewModel() {
 
     private val selectedDay = MutableStateFlow(1)
@@ -130,11 +132,18 @@ class TimeSlotConfigViewModel @Inject constructor(
 
     fun deleteSlot(slot: TimeSlotEntity) {
         viewModelScope.launch {
+            val scheduled = runCatching {
+                timetableEntryDao.getEntryCountByTimeSlot(slot.id)
+            }.getOrDefault(0)
+            if (scheduled > 0) {
+                error.value = "This period is used by $scheduled timetable entr${if (scheduled == 1) "y" else "ies"}. Remove those classes first."
+                return@launch
+            }
             try {
                 timeSlotDao.delete(slot)
                 message.value = "Time slot deleted"
             } catch (e: Exception) {
-                error.value = "This period is used by the timetable. Remove those classes first."
+                error.value = "Could not delete this period: ${e.message ?: "it is still in use"}"
             }
         }
     }

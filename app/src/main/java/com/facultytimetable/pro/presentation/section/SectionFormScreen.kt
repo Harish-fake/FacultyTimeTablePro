@@ -130,16 +130,26 @@ class SectionFormViewModel @Inject constructor(
             _state.value = _state.value.copy(isSaving = true)
             try {
                 val base = existing.value
+                val normalizedName = s.name.trim()
+                val duplicate = sectionDao.getAllSections().first()
+                    .firstOrNull { it.name.equals(normalizedName, ignoreCase = true) && it.id != sectionId }
+                if (duplicate != null) {
+                    _state.value = _state.value.copy(
+                        isSaving = false,
+                        error = "A section named $normalizedName already exists"
+                    )
+                    return@launch
+                }
                 val entity = if (base == null) {
                     SectionEntity(
-                        name = s.name.trim(),
+                        name = normalizedName,
                         semesterId = s.selectedSemesterId,
                         departmentId = s.selectedDepartmentId,
                         strength = s.strength.toIntOrNull() ?: 0
                     )
                 } else {
                     base.copy(
-                        name = s.name.trim(),
+                        name = normalizedName,
                         semesterId = s.selectedSemesterId,
                         departmentId = s.selectedDepartmentId,
                         strength = s.strength.toIntOrNull() ?: 0,

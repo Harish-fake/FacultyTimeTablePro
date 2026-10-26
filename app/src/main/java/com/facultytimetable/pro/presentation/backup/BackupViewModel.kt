@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.facultytimetable.pro.data.local.backup.BackupManager
+import com.facultytimetable.pro.data.local.backup.BackupPreview
 import com.facultytimetable.pro.data.local.db.entity.BackupHistoryEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,8 @@ data class BackupUiState(
     val history: List<BackupHistoryEntity> = emptyList(),
     val isBusy: Boolean = false,
     val message: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val preview: BackupPreview? = null
 ) {
     val lastBackup: BackupHistoryEntity? get() = history.firstOrNull()
 }
@@ -31,14 +33,17 @@ class BackupViewModel @Inject constructor(
     private val busy = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
     private val error = MutableStateFlow<String?>(null)
+    private val preview = MutableStateFlow<BackupPreview?>(null)
+    private var pendingRestoreUri: Uri? = null
 
     val state: StateFlow<BackupUiState> = combine(
         backupManager.history(),
         busy,
         message,
-        error
-    ) { history, isBusy, msg, err ->
-        BackupUiState(history = history, isBusy = isBusy, message = msg, error = err)
+        error,
+        preview
+    ) { history, isBusy, msg, err, inspected ->
+        BackupUiState(history = history, isBusy = isBusy, message = msg, error = err, preview = inspected)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BackupUiState())
 
     fun consumeMessage() { message.value = null }
@@ -53,7 +58,36 @@ class BackupViewModel @Inject constructor(
         }
     }
 
-    fun restoreBackup(uri: Uri) {
+    /** Reads and verifies the chosen file before anything is replaced. */
+    fun inspectBackup(uri: Uri) {
+        viewModelScope.launch {
+            busy.value = true
+            val result = backupManager.inspectBackup(uri)
+            busy.value = false
+            if (!result.valid) {
+                pendingRestoreUri = null
+                preview.value = null
+                error.value = result.message
+            } else {
+                pendingRestoreUri = uri
+                preview.value = result
+            }
+        }
+    }
+
+    fun cancelRestore() {
+        pendingRestoreUri = null
+        preview.value = null
+    }
+
+    fun confirmRestore() {
+        val uri = pendingRestoreUri ?: return
+        pendingRestoreUri = null
+        preview.value = null
+        restoreBackup(uri)
+    }
+
+    private fun restoreBackup(uri: Uri) {
         viewModelScope.launch {
             busy.value = true
             val result = backupManager.restoreBackup(uri)

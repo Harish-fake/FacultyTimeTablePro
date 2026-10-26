@@ -269,6 +269,16 @@ fun DashboardScreen(
                         }
                     }
                 }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        QuickAction("Sample data", Icons.Default.AutoAwesome, Modifier.weight(1f)) {
+                            navController.navigate(Routes.SAMPLE_DATA)
+                        }
+                        QuickAction("Search", Icons.Default.Search, Modifier.weight(1f)) {
+                            navController.navigate(Routes.SEARCH)
+                        }
+                    }
+                }
             }
         }
     }

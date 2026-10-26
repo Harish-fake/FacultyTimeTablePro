@@ -183,7 +183,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
             SectionLabel("About")
-            SettingsRow(Icons.Default.School, "Faculty TimeTable Pro", "Version 1.1.0 · Offline first", onClick = null)
+            SettingsRow(Icons.Default.School, "Faculty TimeTable Pro", "Version ${com.facultytimetable.pro.BuildConfig.VERSION_NAME} · Offline first", onClick = null)
             Text(
                 "Built for department timetabling: deterministic generation, conflict validation and a complete sample data set.",
                 style = MaterialTheme.typography.bodySmall,

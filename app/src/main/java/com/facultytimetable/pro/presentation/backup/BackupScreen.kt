@@ -1,6 +1,5 @@
 package com.facultytimetable.pro.presentation.backup
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -68,7 +67,6 @@ fun BackupScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var pendingRestore by remember { mutableStateOf<Uri?>(null) }
     var deleteTarget by remember { mutableStateOf<BackupHistoryEntity?>(null) }
 
     val createLauncher = rememberLauncherForActivityResult(
@@ -79,7 +77,7 @@ fun BackupScreen(
     val openLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        if (uri != null) pendingRestore = uri
+        if (uri != null) viewModel.inspectBackup(uri)
     }
 
     LaunchedEffect(state.message) {
@@ -243,17 +241,24 @@ fun BackupScreen(
         }
     }
 
-    pendingRestore?.let { uri ->
+    state.preview?.let { preview ->
         ConfirmDialog(
             title = "Restore this backup?",
-            message = "Every current department, faculty member, room, section and timetable entry will be replaced by the backup contents.",
-            confirmText = "Restore",
-            isDestructive = true,
-            onConfirm = {
-                viewModel.restoreBackup(uri)
-                pendingRestore = null
+            message = buildString {
+                append("Created ${formatDateTime(preview.createdAt)} with v${preview.appVersion.ifBlank { "unknown" }}")
+                append("\n\n")
+                append("${preview.totalRecords} records: ")
+                append("${preview.departments} departments, ${preview.faculty} faculty, ")
+                append("${preview.subjects} subjects, ${preview.rooms} rooms, ")
+                append("${preview.sections} sections and ${preview.timetableEntries} timetable periods.")
+                append("\n\n")
+                append(if (preview.checksumVerified) "✓ SHA-256 checksum verified. " else "⚠ Legacy backup without a checksum. ")
+                append("Every current record will be replaced.")
             },
-            onDismiss = { pendingRestore = null }
+            confirmText = if (preview.checksumVerified) "Restore verified backup" else "Restore anyway",
+            isDestructive = !preview.checksumVerified,
+            onConfirm = { viewModel.confirmRestore() },
+            onDismiss = { viewModel.cancelRestore() }
         )
     }
 

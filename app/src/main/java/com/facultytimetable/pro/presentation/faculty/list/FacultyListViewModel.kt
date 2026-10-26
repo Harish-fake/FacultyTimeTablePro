@@ -2,6 +2,7 @@ package com.facultytimetable.pro.presentation.faculty.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.facultytimetable.pro.data.local.db.dao.TimetableEntryDao
 import com.facultytimetable.pro.data.local.db.entity.FacultyEntity
 import com.facultytimetable.pro.domain.repository.FacultyRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,7 +23,8 @@ data class FacultyListState(
 
 @HiltViewModel
 class FacultyListViewModel @Inject constructor(
-    private val facultyRepository: FacultyRepository
+    private val facultyRepository: FacultyRepository,
+    private val timetableEntryDao: TimetableEntryDao
 ) : ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
@@ -50,10 +52,17 @@ class FacultyListViewModel @Inject constructor(
 
     fun deleteFaculty(faculty: FacultyEntity) {
         viewModelScope.launch {
+            val scheduled = runCatching {
+                timetableEntryDao.getEntryCountByFaculty(faculty.id)
+            }.getOrDefault(0)
+            if (scheduled > 0) {
+                message.value = "Cannot delete ${faculty.name}: $scheduled timetable period(s) are assigned to them."
+                return@launch
+            }
             runCatching { facultyRepository.delete(faculty) }
                 .onSuccess { message.value = "${faculty.name} deleted" }
                 .onFailure {
-                    message.value = "Cannot delete ${faculty.name}: remove their timetable entries first."
+                    message.value = "Cannot delete ${faculty.name}: they are still in use."
                 }
         }
     }

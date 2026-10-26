@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.facultytimetable.pro.data.local.db.dao.SectionDao
 import com.facultytimetable.pro.data.local.db.dao.SemesterDao
+import com.facultytimetable.pro.data.local.db.dao.TimetableEntryDao
 import com.facultytimetable.pro.data.local.db.entity.SectionEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,8 @@ data class SectionWithSemester(
 @HiltViewModel
 class SectionListViewModel @Inject constructor(
     private val sectionDao: SectionDao,
-    private val semesterDao: SemesterDao
+    private val semesterDao: SemesterDao,
+    private val timetableEntryDao: TimetableEntryDao
 ) : ViewModel() {
 
     private val message = MutableStateFlow<String?>(null)
@@ -50,6 +52,13 @@ class SectionListViewModel @Inject constructor(
 
     fun deleteSection(section: SectionEntity) {
         viewModelScope.launch {
+            val scheduled = runCatching {
+                timetableEntryDao.getEntryCountBySection(section.id)
+            }.getOrDefault(0)
+            if (scheduled > 0) {
+                message.value = "Cannot delete ${section.name}: $scheduled timetable period(s) still belong to it."
+                return@launch
+            }
             runCatching { sectionDao.delete(section) }
                 .onSuccess { message.value = "${section.name} deleted" }
                 .onFailure { message.value = "Could not delete ${section.name}" }

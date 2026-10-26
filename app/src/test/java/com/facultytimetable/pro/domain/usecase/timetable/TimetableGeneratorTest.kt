@@ -36,6 +36,22 @@ class TimetableGeneratorTest {
 
         val expectedPeriods = plan.assignments.sumOf { it.subject.requiredPeriods }
         assertEquals("Every required period should be scheduled", expectedPeriods, result.entries.size)
+        assertEquals("The sample dataset must require 48 periods", 48, expectedPeriods)
+
+        val sectionNames = data.sections.associate { it.id to it.name }
+        val periodsBySection = result.entries
+            .groupingBy { sectionNames.getValue(it.sectionId) }
+            .eachCount()
+        assertEquals(
+            "Each section must receive its exact documented quota",
+            mapOf(
+                "CSE 3A" to 13,
+                "CSE 3B" to 13,
+                "ECE 3A" to 11,
+                "ME 3A" to 11
+            ),
+            periodsBySection
+        )
 
         // No section may be double-booked.
         val sectionSlots = result.entries.map { Triple(it.sectionId, it.dayOfWeek, it.timeSlotId) }
@@ -93,6 +109,27 @@ class TimetableGeneratorTest {
                 room.capacity >= section.strength
             )
         }
+    }
+
+    @Test
+    fun `sample dataset matches the documented size and quotas`() {
+        val data = SampleDataProvider.bundle(sampleNow)
+        val plan = AssignmentPlanner().plan(data.sections, data.subjects, data.faculty, data.departments)
+
+        assertEquals(3, data.departments.size)
+        assertEquals(6, data.faculty.size)
+        assertEquals(10, data.subjects.size)
+        assertEquals(8, data.rooms.size)
+        assertEquals(4, data.sections.size)
+        assertEquals(40, data.timeSlots.size)
+        assertEquals(30, data.timeSlots.count { it.type == SlotType.REGULAR })
+        assertEquals(48, plan.assignments.sumOf { it.subject.requiredPeriods })
+
+        val quotas = plan.assignments
+            .groupBy { it.section.name }
+            .mapValues { (_, assignments) -> assignments.sumOf { it.subject.requiredPeriods } }
+        assertEquals(mapOf("CSE 3A" to 13, "CSE 3B" to 13, "ECE 3A" to 11, "ME 3A" to 11), quotas)
+        assertTrue("Planner should not report warnings: ${plan.warnings}", plan.warnings.isEmpty())
     }
 
     @Test

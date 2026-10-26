@@ -86,8 +86,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             resetRunning.value = true
             try {
-                databaseSeeder.resetToSampleData()
-                onDone("Demo data restored")
+                val result = databaseSeeder.resetToSampleData()
+                onDone(
+                    if (result.isComplete) {
+                        "Sample data restored: ${result.scheduledPeriods} periods, no conflicts"
+                    } else {
+                        "Sample data restored with ${result.warnings.size} warning(s)"
+                    }
+                )
             } catch (e: Exception) {
                 onDone("Could not restore demo data: ${e.message ?: "unknown error"}")
             } finally {

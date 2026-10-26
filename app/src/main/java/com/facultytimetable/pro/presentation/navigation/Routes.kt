@@ -27,6 +27,7 @@ object Routes {
     const val TIMETABLE_ROOM = "timetable/room/{roomId}"
     const val TIMETABLE_SECTION = "timetable/section/{sectionId}"
     const val TIMETABLE_GENERATOR = "timetable/generator"
+    const val SAMPLE_DATA = "sample-data"
     const val FACULTY_LEAVE = "faculty/leave/{facultyId}"
     const val SEARCH = "search"
     const val REPORTS = "reports"

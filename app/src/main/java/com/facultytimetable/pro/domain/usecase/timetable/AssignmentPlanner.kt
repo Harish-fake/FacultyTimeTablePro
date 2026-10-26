@@ -82,8 +82,14 @@ class AssignmentPlanner @Inject constructor() {
                         )
                     ) ?: return@forEach
 
+                    val projectedLoad = (load[selected.id] ?: 0) + required
+                    if (projectedLoad > selected.maxWeeklyHours) {
+                        warnings += "${selected.name} would reach $projectedLoad periods for ${section.name}, " +
+                            "above their ${selected.maxWeeklyHours}-period limit. Add another faculty member."
+                    }
+
                     assignments += TeachingAssignment(subject = subject, section = section, faculty = selected)
-                    load[selected.id] = (load[selected.id] ?: 0) + required
+                    load[selected.id] = projectedLoad
                 }
             }
 
