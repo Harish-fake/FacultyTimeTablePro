@@ -167,6 +167,8 @@ File: `app/build/outputs/apk/debug/app-debug.apk`, 21 MB.
 5. Asserts the APK exists, prints its SHA-256 and `aapt2` metadata.
 6. Uploads the installable APK + checksum as `FacultyTimeTablePro-v1.1.0-debug` (90 days) and the test report (14 days).
 
+**Verified CI run:** [Actions run 40265455776](https://github.com/Harish-fake/FacultyTimeTablePro/actions/runs/40265455776) — all 10 steps passed, including unit tests, APK verification and artifact upload. Downloaded artifact checksum matched `73be798e7e2cbfefffafc6bd0905f0c3a1a925db58a03631f934944db10ef930`.
+
 ---
 
 ## 5. Architecture and technical inventory
@@ -244,6 +246,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Open the repository's **Actions** tab → latest successful **Android Build** → artifact `FacultyTimeTablePro-v1.1.0-debug`. The artifact contains `app-debug.apk` and `app-debug.apk.sha256`.
 
+A verified build is also attached to the [v1.1.0 release](https://github.com/Harish-fake/FacultyTimeTablePro/releases/tag/v1.1.0), with SHA-256 `73be798e7e2cbfefffafc6bd0905f0c3a1a925db58a03631f934944db10ef930`.
+
 ---
 
 ## 8. Known limitations
@@ -262,3 +266,7 @@ These are deliberate scope boundaries, not broken behaviour:
 ## 9. Bottom line
 
 Version 1.1.0 is a complete, buildable, tested Android application. The critical and high-severity defects from the baseline are fixed, the promised screens are real, the demo data generates a verified conflict-free timetable, and CI publishes an installable APK with a checksum. The project is ready for evaluation and for a release-signing step if distribution is required.
+
+### Repository history note
+
+While this work was in progress, `main` also received a divergent parallel upgrade (culminating at `5ec7b52`). That implementation was preserved unchanged in branch `archive/parallel-upgrade-5ec7b52`; the verified v1.1.0 tree was merged over it so that no history was lost. The archive branch builds, but it has no generator tests, uses a destructive migration fallback, and does not include the verified 48-period dataset, which is why it is not the release tree.

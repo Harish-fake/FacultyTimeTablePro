@@ -168,6 +168,9 @@ The Gradle wrapper JAR is committed, so a fresh clone builds without regeneratin
 
 Download the latest APK from the **Actions** tab of the repository: open the latest successful *Android Build* run and use the artifact section.
 
+**Direct download:** [FacultyTimeTablePro v1.1.0 release](https://github.com/Harish-fake/FacultyTimeTablePro/releases/tag/v1.1.0)  
+APK SHA-256: `73be798e7e2cbfefffafc6bd0905f0c3a1a925db58a03631f934944db10ef930`
+
 ---
 
 ## Tests
